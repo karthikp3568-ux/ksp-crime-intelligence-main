@@ -1,0 +1,45 @@
+{
+  "project": {
+    "name": "KSP",
+    "id": "46172000000022001",
+    "datacenter": "in"
+  },
+  "client": {
+    "source": "dist"
+  },
+  "functions": {
+    "source": "functions",
+    "targets": [
+      "ksp"
+    ],
+    "ignore": [
+      "functions/ksp/datastore/*.db-wal",
+      "functions/ksp/datastore/*.db-shm"
+    ]
+  },
+  "authentication": {
+    "enabled": true,
+    "providers": [
+      "catalyst_auth"
+    ]
+  },
+  "datastore": {
+    "enabled": true
+  },
+  "stratus": {
+    "enabled": true,
+    "buckets": [
+      "ksp-evidence-vault"
+    ]
+  },
+  "quickml": {
+    "enabled": true,
+    "model": "Qwen 2.5-14B-Instruct",
+    "alias": "ksp-chat-v1"
+  },
+  "zia": {
+    "ocr": true,
+    "translation": true,
+    "voice": true
+  }
+}

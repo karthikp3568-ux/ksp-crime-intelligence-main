@@ -1,0 +1,21 @@
+{
+  "name": "ksp-crime-intelligence-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && npm install --prefix client && npm install --prefix functions/ksp",
+    "install:client": "npm install --prefix client",
+    "install:server": "npm install --prefix functions/ksp",
+    "build": "npm run install:client && npm run build --prefix client",
+    "test": "npm run test --prefix functions/ksp",
+    "start": "node functions/ksp/server.js",
+    "seed": "python3 datastore/seed/generate_synthetic_data.py",
+    "dev": "concurrently \"npm run dev --prefix client\" \"node --watch functions/ksp/server.js\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "pptxgenjs": "^4.0.1",
+    "typescript": "^5.7.3",
+    "vite": "^8.0.0"
+  }
+}

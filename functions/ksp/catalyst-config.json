@@ -1,0 +1,10 @@
+{
+  "deployment": {
+    "name": "ksp",
+    "stack": "node20",
+    "type": "advancedio"
+  },
+  "execution": {
+    "main": "server.js"
+  }
+}
