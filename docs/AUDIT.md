@@ -4,7 +4,7 @@ Audit date: 2026-10-12
 Scope: current repository source, local build/test execution, and local SQLite-backed application.  
 Run parameters: local-only; fictional/synthetic records only; no live AI provider or external agency integration configured. The current Node.js runtime observed during checks was v24.12.0. No execution budget or demo deadline was supplied.
 
-## Executive summary
+## Executive summary — Phase 0 baseline
 
 This is a React/TypeScript + Express/SQLite full-stack prototype with role-labelled dashboards, a large API surface, and seeded fictional case data. The production frontend bundle builds and the local application starts. The current smoke script reports 10/10 pillars, but this is not evidence of complete feature behavior: it accepts empty financial/CDR results and reports local dynamic NLP as a successful chat result.
 
@@ -17,6 +17,14 @@ Baseline quality gates are not green:
 - Dependency audit reports 8 client advisories (5 high) and 14 backend advisories (7 high, 2 critical).
 
 The app must remain a synthetic-data demonstration. It is not verified as a live police system, must not be used for real investigative decisions, and must not connect real personal data to an external AI provider.
+
+## Current status after Phase 1
+
+- Authentication was hardened: bcrypt is used for new passwords, legacy hashes can be upgraded on successful login, the demo JWT bypass was removed, and production requires a configured secret.
+- Individual risk/threat scoring was removed from active service, chat routing, API/UI outputs, and seed/schema paths. Startup removes legacy score columns from the local SQLite database; the ethical-policy tests pass.
+- Latest backend test suite and frontend production build pass. The frontend build still emits a large-chunk warning.
+- TypeScript checking still reports five diagnostics in `OnboardingTour.tsx`, `ForecastAlertPanel.tsx`, and `main.tsx`; targeted lint still reports issues. The complete current verification record is in `docs/PROGRESS.md`.
+- Local smoke check on port 3002 returned HTTP 200 for `/` and `/api/health/live`, and HTTP 401 for unauthenticated `POST /api/chat`. This does not validate authenticated UI flows or external integrations.
 
 ## Project structure and execution
 
@@ -54,21 +62,21 @@ Most API paths are behind JWT middleware, with explicit public login/health path
 - CCTNS client explicitly runs in `DEMO_SIMULATOR` mode without configured credentials and generates randomized records. ICJS adapter states live mode is not implemented. Court/prison/biometric/dispatch/forecast features include local or synthetic behavior.
 - Chat supports configured providers but can fall back to `local-dynamic-nlp`; the smoke test observed that provider. This must not be labelled as a live LLM/RAG answer.
 - Biometric fallback can return synthetic matches and computes mock similarity values. OCR UI submits the literal `MOCK_BASE64` instead of uploaded document bytes.
-- The application and seed data include individual-level risk scores, threat labels, and recommendations. The user-provided requirements prohibit individual risk scoring and demographic indicators; this code requires a deliberate, cross-surface removal/replacement, not merely a test adjustment.
+- At the time of the Phase 0 snapshot, the application and seed data included individual-level risk scores, threat labels, and recommendations. Phase 1 removed the active scoring outputs and seed/schema fields, blocked chat requests, and added a startup migration for legacy SQLite columns; see `docs/PROGRESS.md`.
 - The PDF service calls a Catalyst-shaped SDK abstraction locally. A local 468-byte response passed the smoke test, but this does not establish official status, authenticity, legal admissibility, or live Catalyst connectivity.
 - Evidence registration currently accepts a supplied file hash; the inspected UI/API path does not establish that the backend computes a hash from uploaded file contents.
 - The client API substitutes sample data on failed or non-OK fetches in multiple methods, including anomalies, audit logs, case, finance, similar cases, forecasts, workspace, and several others. These fallbacks can mask backend failures and must be replaced by explicit error/empty states.
 
 ## Security and reliability findings to address
 
-1. **Production secret default:** `docker-compose.yml` supplies a hard-coded fallback `JWT_SECRET` while setting `NODE_ENV=production`. Remove the fallback and require an externally supplied secret; never publish a real secret.
-2. **Password hashing:** `auth-middleware/jwt-utils.js` uses one-pass SHA-256 with salt and string equality. This is not a password-hashing KDF and must be migrated safely with existing synthetic seed data.
-3. **Development token bypass:** `verifyToken` recognizes `demo_signature` outside production. Remove this bypass and test that malformed/unsigned tokens always fail.
+1. **Production secret default — resolved in Phase 1:** removed the checked-in Compose fallback; production startup requires a sufficiently long configured `JWT_SECRET`.
+2. **Password hashing — resolved in Phase 1:** new passwords use bcrypt; legacy salted SHA-256 hashes remain verifiable and are upgraded at successful login.
+3. **Development token bypass — resolved in Phase 1:** removed the `demo_signature` bypass and tightened JWT validation.
 4. **Browser token storage:** JWT is stored in `localStorage`, exposing it to script injection. This requires a documented threat decision and secure session design.
 5. **Authorization:** JWT authentication alone does not establish role permission or resource ownership. RLS use is inconsistent; test every privileged read/write, policymaker aggregation boundary, cross-user access and overrides.
 6. **Error handling:** several API handlers return raw exception messages. The app lacks one consistent safe error/request-ID contract and centralized error middleware.
 7. **Audit claims:** a database hash chain can detect some changes but is not immutable; direct database write access can rewrite it. The README uses stronger claims than the implementation warrants.
-8. **Production Compose configuration:** contains a checked-in fallback JWT secret. Other deployment and Catalyst claims must remain labelled as unverified until actually exercised.
+8. **Deployment claims:** the Compose JWT fallback was removed in Phase 1. Other deployment and Catalyst claims remain unverified until actually exercised.
 9. **Demo data and UI:** randomly generated geofence alerts and response-shaped fallbacks can look like live activity. Every simulator and synthetic record must be visibly labelled.
 10. **Tracked database:** `functions/ksp/datastore/ksp_crime.db` is tracked. Treat it as synthetic fixture data only, inspect before any publication, and never put real personal data in it.
 
@@ -86,8 +94,8 @@ Executed from the repository root unless noted:
 | `npm start`, GET `/`, GET `/api/health/live` | Server starts locally; frontend returned HTTP 200 and health/live returned HTTP 200 with `live: true`. |
 | `npm audit --json` (client/backend) | Client: 8 advisories (5 high); backend: 14 (7 high, 2 critical). These are lockfile audit counts, not proof of exploitability. |
 
-The server is currently running locally at `http://localhost:3001`. No source edits had been made before the Phase 0 audit was recorded.
+The server was running locally at `http://localhost:3001` when Phase 0 was recorded. The Phase 0 statements above are a historical baseline; current verification is tracked in `docs/PROGRESS.md`.
 
-## Audit conclusion
+## Phase 0 audit conclusion
 
-Current status is a locally runnable prototype with a successful client build and smoke boot, but failing type/lint/backend gates, no demonstrated live integrations, misleading client fallbacks, and security design gaps. Phase work should prioritize safe authentication/authorization and transparent data states, then connect and test deterministic synthetic core workflows. No real records or external live agency integrations are in scope.
+At the Phase 0 snapshot, this was a locally runnable prototype with failing type/lint/backend gates, no demonstrated live integrations, misleading client fallbacks, and security design gaps. Phase 1 resolved selected authentication gaps and removed person-level scoring; remaining work includes authorization/error handling, client fake-success fallbacks, and deterministic synthetic workflows. No real records or external live agency integrations are in scope.

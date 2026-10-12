@@ -5,7 +5,6 @@ import { VoiceInput } from '../VoiceInput/VoiceInput';
 import { HotspotMap } from '../Visualizations/HotspotMap';
 import { TrendChart } from '../Visualizations/TrendChart';
 import { NetworkGraph } from '../Visualizations/NetworkGraph';
-import { RiskScoreCard } from '../Visualizations/RiskScoreCard';
 import { FinancialFlowGraph } from '../Visualizations/FinancialFlowGraph';
 import { SocioDemographicChart } from '../Visualizations/SocioDemographicChart';
 import { SimilarCasesCard } from '../Visualizations/SimilarCasesCard';
@@ -285,7 +284,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleNodeSelect = (name: string, type: 'person' | 'case') => {
     if (type === 'person') {
       if (onAccusedSelect) onAccusedSelect(name);
-      handleSend(`What is the risk score of ${name}?`);
+      handleSend(`Show case records for ${name}`);
     } else {
       if (onFirSelect) onFirSelect(name);
       handleSend(`Show case details for ${name}`);
@@ -591,9 +590,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 {msg.toolResult.tool === 'network' && (
                   <NetworkGraph data={msg.toolResult.data} onNodeSelect={handleNodeSelect} />
                 )}
-                {msg.toolResult.tool === 'risk' && (
-                  <RiskScoreCard profile={msg.toolResult.data} onFirSelect={onFirSelect} onRecalculate={(query) => handleSend(query)} />
-                )}
                 {msg.toolResult.tool === 'finance' && (
                   <FinancialFlowGraph data={msg.toolResult.data} totalAmount={msg.toolResult.data.totalAmount} suspiciousCount={msg.toolResult.data.suspiciousCount} />
                 )}
@@ -658,7 +654,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <span className="text-[10px] text-[#6c757d] font-bold uppercase tracking-wider">Demo Presets:</span>
         <div className="flex flex-1 gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {[
-            { label: '👤 Risk of Jacky', query: 'Show risk profile of Jacky' },
             { label: '🕸️ Offender Network: Sharief', query: 'Map offender network connections for Mohammad Sharief' },
             { label: '💰 Financial Trail: FIR-2026-004', query: 'Show financial transaction trail for FIR-2026-004' },
             { label: '📍 Hotspots: Bengaluru', query: 'Show crime hotspots in Bengaluru' },

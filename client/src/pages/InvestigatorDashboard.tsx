@@ -338,7 +338,7 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({ us
   };
 
   const handleInvestigateAccused = (name: string) => {
-    setChatOverrideQuery(`Calculate the risk profile of ${name}`);
+    setChatOverrideQuery(`Show case records for ${name}`);
     setTimeout(() => setChatOverrideQuery(undefined), 100);
   };
 
@@ -1781,13 +1781,13 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({ us
                 <button
                   onClick={() => {
                     const suspect = ocrResult.entities.suspects[0];
-                    const prompt = `Evaluate the risk profile of ${suspect} with active warrant`;
+                    const prompt = `Show case records for ${suspect} with an active warrant`;
                     setChatOverrideQuery(prompt);
                     setTimeout(() => setChatOverrideQuery(undefined), 100);
                   }}
                   className="w-full mt-1.5 py-1.5 bg-[#1e3a5f] hover:bg-[#1e3a5f]-light text-white rounded text-[11px] font-bold cursor-pointer transition text-center shadow"
                 >
-                  Verify Threat Score of {ocrResult.entities.suspects[0]}
+                  Review Case Records for {ocrResult.entities.suspects[0]}
                 </button>
               )}
             </div>
@@ -1881,7 +1881,7 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({ us
                       onClick={() => handleInvestigateAccused(match.name)}
                       className="block text-[10px] text-[#1e3a5f] font-bold hover:underline cursor-pointer text-right w-full"
                     >
-                      Analyze threat score
+                      View linked case records
                     </button>
                   </div>
                 </div>

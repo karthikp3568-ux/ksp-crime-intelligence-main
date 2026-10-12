@@ -53,7 +53,6 @@ const LLM_LABELS: Record<string, { name: string; badge: string; color: string }>
 
 // Reasoning path steps for each tool
 const REASONING_STEPS: Record<string, string[]> = {
-  risk: ['Query parsed & entity extracted', 'Accused records matched in DB', 'Socio-economic indicators loaded', 'Multi-factor risk score computed', 'Behavioral profile analyzed', 'LLM narrative generated'],
   network: ['Query classified as network analysis', 'CaseLinks table joined with FIR', 'Repeat offenders identified', 'Graph nodes & edges assembled', 'RLS jurisdiction filter applied', 'LLM narrative generated'],
   map: ['Query classified as geospatial', 'Location table joined with FIR', 'Crime type & district filters applied', 'Coordinates extracted for mapping', 'RLS jurisdiction filter applied', 'LLM narrative generated'],
   chart: ['Query classified as trend analytics', 'Monthly aggregation computed', 'District-level breakdown built', 'Seasonal pattern analysis run', 'Event-based cluster detection', 'LLM narrative generated'],

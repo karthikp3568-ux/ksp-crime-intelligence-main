@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldAlert, Users, MapPin, TrendingUp, AlertTriangle, Clock } from 'lucide-react';
+import { ShieldAlert, MapPin, TrendingUp, Clock } from 'lucide-react';
 
 interface EarlyWarningAlert {
   type: string;
@@ -17,11 +17,9 @@ interface EarlyWarningPanelProps {
       total_alerts: number;
       critical_count: number;
       high_count: number;
-      repeat_offenders: number;
       active_gangs: number;
       mo_clusters: number;
       geo_hotspots: number;
-      escalations: number;
       temporal_surges: number;
       recommendations: string[];
     };
@@ -29,11 +27,9 @@ interface EarlyWarningPanelProps {
 }
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-  REPEAT_OFFENDER: { icon: <Users size={12} />, color: 'text-[#d9251c]', label: 'Repeat Offender' },
   GANG_ACTIVITY: { icon: <ShieldAlert size={12} />, color: 'text-[#d9251c]', label: 'Gang Activity' },
   MO_CLUSTER: { icon: <TrendingUp size={12} />, color: 'text-amber-700', label: 'MO Pattern' },
   GEOGRAPHIC_CLUSTER: { icon: <MapPin size={12} />, color: 'text-amber-700', label: 'Geographic Hotspot' },
-  ESCALATION: { icon: <AlertTriangle size={12} />, color: 'text-[#d9251c]', label: 'Escalation' },
   TEMPORAL_CLUSTER: { icon: <Clock size={12} />, color: 'text-orange-700', label: 'Temporal Surge' },
 };
 
@@ -50,11 +46,9 @@ export const EarlyWarningPanel: React.FC<EarlyWarningPanelProps> = ({ data }) =>
     total_alerts: 0,
     critical_count: 0,
     high_count: 0,
-    repeat_offenders: 0,
     active_gangs: 0,
     mo_clusters: 0,
     geo_hotspots: 0,
-    escalations: 0,
     temporal_surges: 0,
     recommendations: []
   };
@@ -81,16 +75,12 @@ export const EarlyWarningPanel: React.FC<EarlyWarningPanelProps> = ({ data }) =>
             <div className="text-[9px] text-[#6c757d] uppercase">Total Alerts</div>
           </div>
           <div className="bg-blue-50 rounded-lg p-2.5 text-center border border-blue-800/30">
-            <div className="text-lg font-bold text-[#1e3a5f]">{(summary.repeat_offenders || 0) + (summary.active_gangs || 0)}</div>
-            <div className="text-[9px] text-[#6c757d] uppercase">Threats</div>
+            <div className="text-lg font-bold text-[#1e3a5f]">{(summary.mo_clusters || 0) + (summary.geo_hotspots || 0) + (summary.temporal_surges || 0)}</div>
+            <div className="text-[9px] text-[#6c757d] uppercase">Case Patterns</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-1.5 text-center">
-          <div className="bg-[#f0f4f8]/50 rounded p-1.5">
-            <div className="text-xs font-bold text-[#1e3a5f]">{summary.repeat_offenders || 0}</div>
-            <div className="text-[8px] text-[#6c757d]">Repeat Offenders</div>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5 text-center">
           <div className="bg-[#f0f4f8]/50 rounded p-1.5">
             <div className="text-xs font-bold text-[#1e3a5f]">{summary.active_gangs || 0}</div>
             <div className="text-[8px] text-[#6c757d]">Active Gangs</div>
@@ -115,7 +105,7 @@ export const EarlyWarningPanel: React.FC<EarlyWarningPanelProps> = ({ data }) =>
         <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-3">Active Alerts ({alerts.length})</h4>
         <div className="space-y-2 max-h-[400px] overflow-y-auto">
           {alerts.slice(0, 15).map((alert, idx) => {
-            const config = typeConfig[alert.type] || typeConfig.REPEAT_OFFENDER;
+            const config = typeConfig[alert.type] || typeConfig.MO_CLUSTER;
             return (
               <div key={idx} className={`border rounded-lg p-3 ${severityBg[alert.severity] || severityBg.Medium}`}>
                 <div className="flex items-center gap-2 mb-1">

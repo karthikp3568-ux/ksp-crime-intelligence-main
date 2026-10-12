@@ -128,10 +128,56 @@ class CatalystInstance {
           this.db.exec(schema, (schemaErr) => {
             if (schemaErr) {
               console.error('Schema initialization error (may be partial):', schemaErr.message);
-            } else {
-              console.log('Core schema initialized from schema.sql');
+              markDone();
+              return;
             }
-            markDone();
+
+            console.log('Core schema initialized from schema.sql');
+            this.db.run('DROP INDEX IF EXISTS idx_accused_risk', (indexErr) => {
+              if (indexErr) {
+                console.error('Legacy scoring index removal failed:', indexErr.message);
+                process.exit(1);
+              }
+              const tables = ['FIR_Accused', 'Accused'];
+              const legacyColumns = [
+                'risk_score',
+                'risk_model_version',
+                'risk_confidence_low',
+                'risk_confidence_high'
+              ];
+              const inspectNextTable = () => {
+                const table = tables.shift();
+                if (!table) {
+                  markDone();
+                  return;
+                }
+
+                this.db.all(`PRAGMA table_info("${table}")`, (columnsErr, columns) => {
+                  if (columnsErr) {
+                    console.error(`Legacy scoring schema inspection failed for ${table}:`, columnsErr.message);
+                    process.exit(1);
+                  }
+                  const columnsToDrop = legacyColumns.filter(column => columns.some(row => row.name === column));
+                  const dropNextColumn = () => {
+                    const column = columnsToDrop.shift();
+                    if (!column) {
+                      inspectNextTable();
+                      return;
+                    }
+
+                    this.db.run(`ALTER TABLE "${table}" DROP COLUMN "${column}"`, (dropErr) => {
+                      if (dropErr) {
+                        console.error(`Legacy scoring field removal failed for ${table}.${column}:`, dropErr.message);
+                        process.exit(1);
+                      }
+                      dropNextColumn();
+                    });
+                  };
+                  dropNextColumn();
+                });
+              };
+              inspectNextTable();
+            });
           });
         }
 
@@ -178,44 +224,6 @@ class CatalystInstance {
 
           // ====================================================================
           // Phase 1: Officers Table (Authentication & RLS)
-          this.db.run(`
-            CREATE TABLE IF NOT EXISTS Officers (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              badge_id TEXT UNIQUE NOT NULL,
-              name TEXT NOT NULL,
-              rank TEXT NOT NULL,
-              role TEXT NOT NULL,
-              district TEXT NOT NULL,
-              police_station TEXT NOT NULL,
-              password_hash TEXT NOT NULL,
-              is_active INTEGER DEFAULT 1,
-              last_login TEXT,
-              created_at TEXT NOT NULL DEFAULT (datetime('now')),
-              failed_login_attempts INTEGER DEFAULT 0,
-              locked_until TEXT
-            )
-          `, () => {
-            this.db.get("SELECT COUNT(*) as count FROM Officers", [], (err, row) => {
-              if (!err && row && row.count === 0) {
-                const { hashPassword } = require('../auth-middleware/jwt-utils');
-                const defaultHash = hashPassword('Password123!', 'ksp_static_salt_2026');
-                const officers = [
-                  ['KSP-8842-BLR', 'Inspector Sandeep Patil', 'PI', 'Investigator', 'Bengaluru City', 'Bengaluru City Central PS', defaultHash],
-                  ['KSP-8843-BLR', 'Dr. Ananya Rao', 'Senior Analyst', 'Analyst', 'Bengaluru City', 'HQ Intelligence Bureau', defaultHash],
-                  ['KSP-8844-BLR', 'DGP K. V. Gowda', 'DGP', 'Supervisor', 'Bengaluru City', 'State Police Headquarters', defaultHash],
-                  ['KSP-8845-BLR', 'Home Minister Cell', 'Secretary', 'Policymaker', 'Bengaluru City', 'Vidhana Soudha Secretariat', defaultHash]
-                ];
-                for (const off of officers) {
-                  this.db.run(
-                    "INSERT OR IGNORE INTO Officers (badge_id, name, rank, role, district, police_station, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    off
-                  );
-                }
-                console.log('✅ Seeded default operational officers (KSP-8842-BLR through KSP-8845-BLR)');
-              }
-            });
-          });
-
           // ====================================================================
           // Gateway Schema: LLMMemory and DeployedAgents
           // ====================================================================
@@ -648,25 +656,27 @@ class CatalystInstance {
           this._initPending++;
           this.db.get("SELECT COUNT(*) as count FROM Officers", (err, row) => {
             if (!err && row && row.count === 0) {
-              const hashPw = (password) => {
-                const salt = crypto.randomBytes(16).toString('hex');
-                const hash = crypto.createHash('sha256').update(salt + password).digest('hex');
-                return `${salt}:${hash}`;
-              };
-              const officers = [
-                ['INV-1001', 'Meera Nair', 'SI', 'Investigator', 'Bengaluru City', 'Bengaluru City Central PS', hashPw('ksp2026')],
-                ['ANA-2001', 'Priya Sharma', 'DA', 'Analyst', 'Bengaluru City', 'Bengaluru City Central PS', hashPw('ksp2026')],
-                ['SUP-3001', 'Raghavendra K.', 'ACP', 'Supervisor', 'Bengaluru City', 'Bengaluru City Central PS', hashPw('ksp2026')],
-                ['POL-4001', 'Srinivas M.', 'DGP', 'Policymaker', 'Karnataka State', 'DGP Office Bengaluru', hashPw('ksp2026')],
-                ['KSP-8842-BLR', 'Inspector Sandeep Patil', 'PI', 'Investigator', 'Bengaluru City', 'Bengaluru City Central PS', hashPw('Password123!')],
-                ['KSP-8843-BLR', 'Dr. Ananya Rao', 'Senior Analyst', 'Analyst', 'Bengaluru City', 'HQ Intelligence Bureau', hashPw('Password123!')],
-                ['KSP-8844-BLR', 'DGP K. V. Gowda', 'DGP', 'Supervisor', 'Bengaluru City', 'State Police Headquarters', hashPw('Password123!')],
-                ['KSP-8845-BLR', 'Home Minister Cell', 'Secretary', 'Policymaker', 'Bengaluru City', 'Vidhana Soudha Secretariat', hashPw('Password123!')]
-              ];
-              const stmt = this.db.prepare('INSERT INTO Officers (badge_id, name, rank, role, district, police_station, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)');
-              officers.forEach(o => stmt.run(...o));
-              stmt.finalize();
-              console.log('Default officer accounts seeded successfully.');
+              if (process.env.NODE_ENV === 'production' || process.env.CATALYST_ENV === 'production') {
+                console.warn('Synthetic demo officer seeding skipped in production.');
+              } else {
+                const { hashPassword } = require('../auth-middleware/jwt-utils');
+                const officers = [
+                  ['INV-1001', 'Meera Nair', 'SI', 'Investigator', 'Bengaluru City', 'Bengaluru City Central PS', 'ksp2026'],
+                  ['ANA-2001', 'Priya Sharma', 'DA', 'Analyst', 'Bengaluru City', 'Bengaluru City Central PS', 'ksp2026'],
+                  ['SUP-3001', 'Raghavendra K.', 'ACP', 'Supervisor', 'Bengaluru City', 'Bengaluru City Central PS', 'ksp2026'],
+                  ['POL-4001', 'Srinivas M.', 'DGP', 'Policymaker', 'Karnataka State', 'DGP Office Bengaluru', 'ksp2026'],
+                  ['KSP-8842-BLR', 'Inspector Sandeep Patil', 'PI', 'Investigator', 'Bengaluru City', 'Bengaluru City Central PS', 'Password123!'],
+                  ['KSP-8843-BLR', 'Dr. Ananya Rao', 'Senior Analyst', 'Analyst', 'Bengaluru City', 'HQ Intelligence Bureau', 'Password123!'],
+                  ['KSP-8844-BLR', 'DGP K. V. Gowda', 'DGP', 'Supervisor', 'Bengaluru City', 'State Police Headquarters', 'Password123!'],
+                  ['KSP-8845-BLR', 'Home Minister Cell', 'Secretary', 'Policymaker', 'Bengaluru City', 'Vidhana Soudha Secretariat', 'Password123!']
+                ].map(([badgeId, name, rank, role, district, station, password]) => [
+                  badgeId, name, rank, role, district, station, hashPassword(password)
+                ]);
+                const stmt = this.db.prepare('INSERT INTO Officers (badge_id, name, rank, role, district, police_station, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                officers.forEach(officer => stmt.run(...officer));
+                stmt.finalize();
+                console.log('Seeded synthetic development officer accounts.');
+              }
             }
             markDone();
           });

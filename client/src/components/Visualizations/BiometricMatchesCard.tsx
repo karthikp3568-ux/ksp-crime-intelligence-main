@@ -7,7 +7,6 @@ interface BiometricMatch {
   age: number;
   gender: string;
   gang: string;
-  risk_score: number;
   fir_number: string;
   crime_type: string;
   address: string;

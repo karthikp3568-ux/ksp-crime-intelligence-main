@@ -92,7 +92,6 @@ async function runBypassAudit(page, context) {
       <tr>
         <th>Name</th>
         <th>Age</th>
-        <th>Risk Assessment</th>
         <th>Affiliation</th>
       </tr>
     </thead>
@@ -101,7 +100,6 @@ async function runBypassAudit(page, context) {
       <tr>
         <td><strong>{{offender.name}}</strong></td>
         <td>{{offender.age}}</td>
-        <td>{{offender.risk_score}}</td>
         <td>{{offender.gang_affiliation or 'None'}}</td>
       </tr>
       {% endfor %}
@@ -134,7 +132,6 @@ async function runBypassAudit(page, context) {
       { "source_field": "fir_number", "target_field": "case_id", "data_type": "VARCHAR" },
       { "source_field": "crime_type", "target_field": "classification", "data_type": "VARCHAR" },
       { "source_field": "district", "target_field": "region", "data_type": "VARCHAR" },
-      { "source_field": "risk_score", "target_field": "threat_index", "data_type": "FLOAT" }
     ]
   }
 }`

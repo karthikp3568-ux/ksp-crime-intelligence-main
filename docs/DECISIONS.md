@@ -6,6 +6,7 @@
 - Treat the product as a fictional local prototype. Do not access real government/private data or connect real case data to an external AI provider.
 - No AI provider credential was supplied; configure no external provider by default and expose provider availability honestly.
 - Preserve useful existing flows, but do not preserve individual risk scoring, demographic indicators, or automated/adverse-action recommendations because the user-provided requirements explicitly prohibit them.
+- Remove individual risk/threat score fields from both schema/seed paths, migrate legacy SQLite columns on startup, and keep the scoring service as a fail-closed policy stub. Do not use demographic fields for an individual decision.
 - Do not add infrastructure or dependencies without a specific implementation need; document any exception before installation.
 - Avoid destructive database changes. Use forward migrations and fixture backups if the schema needs modification.
 - Keep simulators only when visibly labelled and deterministic; never silently replace API failures with success-shaped synthetic responses.

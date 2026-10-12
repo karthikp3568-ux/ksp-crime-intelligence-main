@@ -239,7 +239,7 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, onNodeSelect }
           <h2 className="text-lg font-bold text-[#1e3a5f] flex items-center gap-2">
             <NetworkIcon className="text-[#1e3a5f]" size={20} /> Syndicate &amp; Case Association Network
           </h2>
-          <p className="text-xs text-[#6c757d] mt-0.5">Click or double-click any node to open full risk profile and intelligence dossier</p>
+          <p className="text-xs text-[#6c757d] mt-0.5">Click or double-click a node to view its related case records</p>
         </div>
         
         {/* Reset physics button */}
@@ -470,4 +470,3 @@ export const NetworkGraph: React.FC<NetworkGraphProps> = ({ data, onNodeSelect }
     </div>
   );
 };
-

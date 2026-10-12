@@ -46,18 +46,6 @@ module.exports = async (firId) => {
       details: { police_station: fir.police_station, status: fir.status }
     });
 
-    const highRiskAccused = accused.filter(a => a.risk_score >= 0.7);
-    if (highRiskAccused.length > 0) {
-      timeline.push({
-        date: fir.date_reported,
-        type: 'risk_flag',
-        title: `High-Risk Accused Identified: ${highRiskAccused.map(a => a.name).join(', ')}`,
-        description: `${highRiskAccused.length} accused with critical risk scores (${highRiskAccused.map(a => `${a.name}: ${(a.risk_score * 100).toFixed(0)}%`).join(', ')})`,
-        severity: 'critical',
-        details: { accused: highRiskAccused.map(a => ({ name: a.name, score: a.risk_score, gang: a.gang_affiliation })) }
-      });
-    }
-
     const gangMembers = accused.filter(a => a.gang_affiliation);
     if (gangMembers.length > 1) {
       const gangs = {};
@@ -102,12 +90,6 @@ module.exports = async (firId) => {
 
     timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    const escalations = [];
-    accused.forEach(a => {
-      if (a.prior_convictions > 2) escalations.push(`${a.name}: ${a.prior_convictions} prior convictions - HIGH recidivism risk`);
-      if (a.risk_score >= 0.8) escalations.push(`${a.name}: Risk score ${(a.risk_score * 100).toFixed(0)}% - CRITICAL threat level`);
-    });
-
     const suspiciousTotal = financials.filter(t => t.is_suspicious).reduce((sum, t) => sum + (t.amount || 0), 0);
     const totalTransactions = financials.reduce((sum, t) => sum + (t.amount || 0), 0);
 
@@ -143,8 +125,7 @@ module.exports = async (firId) => {
         },
         victims: victims.map(v => ({ name: v.name, age: v.age, gender: v.gender, injury: v.injury_type })),
         suspects: accused.map(a => ({
-          name: a.name, age: a.age, risk_score: a.risk_score,
-          threat_level: a.risk_score >= 0.7 ? 'Critical' : a.risk_score >= 0.4 ? 'Medium' : 'Low',
+          name: a.name, age: a.age,
           gang: a.gang_affiliation, prior_convictions: a.prior_convictions
         })),
         financial: {
@@ -158,8 +139,7 @@ module.exports = async (firId) => {
           similar_cases: similarFirs.length,
           mo_patterns: moPatterns.length
         },
-        leads,
-        escalations
+        leads
       },
       suspects: accused,
       leads

@@ -29,19 +29,11 @@ module.exports = async (firId) => {
     const location = locations[0] || null;
     const totalAmount = financials.reduce((sum, t) => sum + (t.amount || 0), 0);
     const suspiciousAmount = financials.filter(t => t.is_suspicious).reduce((sum, t) => sum + (t.amount || 0), 0);
-    const avgRiskScore = accused.length > 0 ? accused.reduce((sum, a) => sum + (a.risk_score || 0), 0) / accused.length : 0;
 
     const executive = `${fir.crime_type} case registered as ${fir.fir_number} at ${fir.police_station}, ${fir.district} on ${fir.date_reported}. ` +
       `Crime occurred on ${fir.date_occurrence}. Involves ${accused.length} accused person(s) and ${victims.length} victim(s). ` +
       `${financials.length} financial transactions traced totaling Rs ${totalAmount.toLocaleString('en-IN')}, of which Rs ${suspiciousAmount.toLocaleString('en-IN')} flagged as suspicious. ` +
       `${caseLinks.length} linked case(s) identified. Case status: ${fir.status}.`;
-
-    const riskFactors = [];
-    accused.forEach(a => {
-      if (a.risk_score >= 0.7) riskFactors.push({ factor: `${a.name} risk score`, impact: 'Critical', detail: `${(a.risk_score * 100).toFixed(0)}% recidivism probability` });
-      if (a.prior_convictions > 0) riskFactors.push({ factor: `${a.name} criminal history`, impact: 'High', detail: `${a.prior_convictions} prior conviction(s)` });
-      if (a.gang_affiliation) riskFactors.push({ factor: `Gang link: ${a.gang_affiliation}`, impact: 'High', detail: `Organized crime network involvement` });
-    });
 
     const evidence = [];
     if (financials.filter(t => t.is_suspicious).length > 0) {
@@ -89,8 +81,6 @@ module.exports = async (firId) => {
         victims: victims.map(v => ({ name: v.name, age: v.age, gender: v.gender, occupation: v.occupation, injury_type: v.injury_type })),
         suspects: accused.map(a => ({
           name: a.name, age: a.age, gender: a.gender, occupation: a.occupation,
-          risk_score: a.risk_score,
-          threat_level: a.risk_score >= 0.7 ? 'Critical' : a.risk_score >= 0.4 ? 'Medium' : 'Low',
           gang: a.gang_affiliation, prior_convictions: a.prior_convictions,
           education: a.education_level, migration: a.migration_status
         })),
@@ -118,11 +108,6 @@ module.exports = async (firId) => {
         },
         leads,
         evidence
-      },
-      riskAssessment: {
-        overall: avgRiskScore,
-        level: avgRiskScore >= 0.7 ? 'Critical' : avgRiskScore >= 0.4 ? 'Medium' : 'Low',
-        factors: riskFactors
       }
     };
   } catch (err) {

@@ -29,8 +29,7 @@ export const AnalystDashboard: React.FC<AnalystDashboardProps> = ({
   const [stats, setStats] = useState({
     total: 0,
     open: 0,
-    syndicates: 0,
-    highRisk: 0
+    syndicates: 0
   });
 
   const [socioData, setSocioData] = useState<any>(null);
@@ -92,13 +91,11 @@ export const AnalystDashboard: React.FC<AnalystDashboardProps> = ({
       const mapRes = await api.submitChat(locationQuery, userId, role);
       let incCount = 0;
       let openCount = 0;
-      let highRiskCount = 0;
 
       if (mapRes.success && mapRes.tool === 'map' && Array.isArray(mapRes.data)) {
         setIncidents(mapRes.data);
         incCount = mapRes.data.length;
         openCount = mapRes.data.filter((i: any) => i.status !== 'Closed').length;
-        highRiskCount = mapRes.data.filter((i: any) => (i.risk_score || 80) >= 70).length;
       }
 
       // 2. Fetch offender network graph
@@ -113,26 +110,22 @@ export const AnalystDashboard: React.FC<AnalystDashboardProps> = ({
       let totalIncidents = 1428;
       let underInv = 956;
       let syndicates = 48;
-      let highThreat = 112;
 
       if (selectedDistrict !== 'All') {
         const districtHash = selectedDistrict.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
         totalIncidents = 120 + (districtHash % 150) + (incCount * 8);
         underInv = Math.floor(totalIncidents * 0.68);
         syndicates = 6 + (districtHash % 8);
-        highThreat = 14 + (districtHash % 16);
       } else {
         totalIncidents = 1428 + (incCount > 3 ? (incCount - 3) * 15 : 0);
         underInv = 956 + (openCount > 3 ? (openCount - 3) * 10 : 0);
         syndicates = 48 + (syndicateCount > 3 ? (syndicateCount - 3) * 2 : 0);
-        highThreat = 112 + (highRiskCount > 3 ? (highRiskCount - 3) * 4 : 0);
       }
 
       setStats({
         total: totalIncidents,
         open: underInv,
-        syndicates: syndicates,
-        highRisk: highThreat
+        syndicates: syndicates
       });
       // 4. Fetch socio-demographic statistics and map them
       try {
@@ -378,10 +371,6 @@ export const AnalystDashboard: React.FC<AnalystDashboardProps> = ({
         <div className="card-panel border border-[#d1d9e6] rounded-lg p-4 text-center">
           <span className="block text-[11px] text-[#6c757d] uppercase font-semibold">Identified Syndicates</span>
           <strong className="text-2xl text-purple-700 block mt-1">{stats.syndicates}</strong>
-        </div>
-        <div className="card-panel border border-[#d1d9e6] rounded-lg p-4 text-center">
-          <span className="block text-[11px] text-[#6c757d] uppercase font-semibold">High Threat Recidivists</span>
-          <strong className="text-2xl text-red-500 block mt-1">{stats.highRisk}</strong>
         </div>
       </div>
 

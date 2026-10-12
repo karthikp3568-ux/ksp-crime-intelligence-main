@@ -19,8 +19,8 @@ This document details how the components built in this prototype map to actual p
 
 | Prototype Module | Catalyst Production Service | Description |
 | :--- | :--- | :--- |
-| `functions/risk-scoring` | **Catalyst Zia AutoML (Tabular)** | Trains and hosts binary classification models to output accused recidivism risk scores. |
-| `functions/anomaly-detection` | **Catalyst Cron + Zia AutoML** | Scheduled serverless cron triggers that run analytics looking for spikes or high-risk active syndicates. |
+| `functions/risk-scoring` | **Disabled by project policy** | Individual risk/threat scoring is intentionally unavailable; no production ML mapping is approved. |
+| `functions/anomaly-detection` | **Local case-level analytics only** | The current prototype can group modus-operandi and district-level case counts; no live Catalyst schedule or model has been verified. |
 | `functions/translate` | **Catalyst Zia Translation** | Dual translation API (English <=> Kannada) to accommodate localized police dialects. |
 | `functions/voice` | **Catalyst Zia STT & TTS** | Voice transcription (speech-to-text) and readout (text-to-speech) capabilities. |
 

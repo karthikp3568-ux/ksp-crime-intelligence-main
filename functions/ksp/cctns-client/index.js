@@ -163,7 +163,6 @@ async function fetchNewFIRs(sinceTimestamp = null) {
       modus_operandi: `Modus Operandi pattern: ${cType} execution identified across ${dName} precinct boundaries.`,
       accused_name: accusedNames[Math.floor(Math.random() * accusedNames.length)],
       accused_age: 28 + Math.floor(Math.random() * 25),
-      risk_score: parseFloat((70 + Math.random() * 28).toFixed(1)),
       gang_affiliation: Math.random() > 0.5 ? 'Organized Crime Syndicate' : 'Independent Offender',
       victim_name: victimNames[Math.floor(Math.random() * victimNames.length)],
       location: {

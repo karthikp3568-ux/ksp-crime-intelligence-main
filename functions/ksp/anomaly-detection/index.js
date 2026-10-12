@@ -4,17 +4,7 @@ module.exports = async () => {
   try {
     const db = catalyst.datastore();
 
-    // 1. Identify active high-risk offenders (risk score > 0.65)
-    const activeHighRiskOffenders = await db.execute(`
-      SELECT name, age, gang_affiliation, MAX(risk_score) as risk_score, COUNT(fir_id) as case_count
-      FROM FIR_Accused
-      WHERE risk_score > 0.65
-      GROUP BY name
-      ORDER BY risk_score DESC
-      LIMIT 5
-    `);
-
-    // 2. Identify Modus Operandi clusters (same MO used in multiple cases)
+    // 1. Identify Modus Operandi clusters (same MO used in multiple cases)
     const moClusters = await db.execute(`
       SELECT f.modus_operandi, f.crime_type, COUNT(f.id) as case_count, 
              GROUP_CONCAT(f.fir_number, ', ') as connected_firs
@@ -25,7 +15,7 @@ module.exports = async () => {
       LIMIT 5
     `);
 
-    // 3. District-wise volume anomalies
+    // 2. District-wise volume anomalies
     const districtStats = await db.execute(`
       SELECT district, COUNT(id) as total_incidents,
              SUM(CASE WHEN date_reported >= date('now', '-30 days') THEN 1 ELSE 0 END) as recent_30_days
@@ -34,18 +24,8 @@ module.exports = async () => {
       ORDER BY recent_30_days DESC
     `);
 
-    // 4. Generate alerts based on these insights
+    // 3. Generate alerts from case-level patterns
     const alerts = [];
-    
-    activeHighRiskOffenders.forEach(offender => {
-      alerts.push({
-        type: "High Risk Offender Alert",
-        severity: "Critical",
-        title: `Active Syndicate Member Detected: ${offender.name}`,
-        description: `${offender.name} (Risk: ${offender.risk_score}) is currently linked to ${offender.case_count} open investigations. Gang affiliation: ${offender.gang_affiliation || 'Independent'}.`,
-        timestamp: new Date().toISOString()
-      });
-    });
 
     moClusters.forEach(mo => {
       alerts.push({
@@ -73,7 +53,6 @@ module.exports = async () => {
     return {
       success: true,
       anomalies: {
-        offenders: activeHighRiskOffenders,
         moPatterns: moClusters,
         districtVolume: districtStats,
         generatedAlerts: alerts

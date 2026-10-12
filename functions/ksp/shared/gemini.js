@@ -326,7 +326,7 @@ const routingSchema = {
   properties: {
     tool: {
       type: 'string',
-      description: 'The classified tool to query the database. Must be one of: risk, network, map, chart, finance, socio, similar, forecast, text, ocr, cdr, biometrics, dispatch, timeline, early_warning, case_summary, general.'
+      description: 'The classified tool to query the database. Must be one of: network, map, chart, finance, socio, similar, forecast, text, ocr, cdr, biometrics, dispatch, timeline, early_warning, case_summary, general.'
     },
     parameters: {
       type: 'object',
@@ -343,23 +343,22 @@ const routingSchema = {
 
 const routingSystemPrompt = `You are the query router and entity extractor for the Karnataka State Police (KSP) Crime Intelligence Portal.
 Analyze the user's natural language query and classify it into one of the following tools:
-1. "risk" - Recidivism risk profile of a specific accused person.
-2. "network" - Syndicate links, accomplice networks, or offender connections.
-3. "map" - Geographical coordinates or crime hotspots.
-4. "chart" - Monthly trends, comparisons, or crime statistics.
-5. "finance" - Financial transaction trails, money flow, bank accounts, or hawala channels.
-6. "socio" - Socio-demographic analysis, age groups, literacy rate, unemployment, or poverty.
-7. "similar" - Similar past cases matching target case.
-8. "forecast" - Early warnings or predicted hotspots.
-9. "text" - Search descriptions, modus operandi search, or text lookup.
-10. "ocr" - Vernacular document OCR scanning, translation, or entity analysis.
-11. "cdr" - Call Detail Record cell tower trajectory timeline or spatial collision analysis.
-12. "biometrics" - Facial recognition, mugshot similarity searches, or biometric matching.
-13. "dispatch" - Emergency 112 dispatch logs, patrol status, or vehicle routing.
-14. "timeline" - Investigation timeline, chronology of events, case progress, or sequence of events for a specific case.
-15. "early_warning" - Repeat crime alerts, gang activity detection, crime escalation patterns, temporal crime surges, or enhanced early warning intelligence.
-16. "case_summary" - Case summary, case brief, case dossier, automated case report, or case file overview.
-17. "general" - General questions, criminology definitions, explanations, standard Q&A, or general knowledge queries unrelated to a specific database record search.
+1. "network" - Case links, documented associations, or entity connections.
+2. "map" - Geographical coordinates or case-level crime hotspots.
+3. "chart" - Monthly trends, comparisons, or crime statistics.
+4. "finance" - Financial transaction trails, money flow, bank accounts, or hawala channels.
+5. "socio" - Aggregate socio-economic statistics, literacy, unemployment, or poverty.
+6. "similar" - Similar past cases matching target case.
+7. "forecast" - Aggregate early warnings or predicted hotspots.
+8. "text" - Search descriptions, modus operandi search, or text lookup.
+9. "ocr" - Vernacular document OCR scanning, translation, or entity analysis.
+10. "cdr" - Call Detail Record cell tower trajectory timeline or spatial collision analysis.
+11. "biometrics" - Facial recognition, mugshot similarity searches, or biometric matching.
+12. "dispatch" - Emergency 112 dispatch logs, patrol status, or vehicle routing.
+13. "timeline" - Investigation timeline, chronology of events, case progress, or sequence of events for a specific case.
+14. "early_warning" - Case-pattern clusters, temporal crime surges, or geographic patterns.
+15. "case_summary" - Case summary, case brief, case dossier, automated case report, or case file overview.
+16. "general" - General questions, criminology definitions, explanations, standard Q&A, or general knowledge queries unrelated to a specific database record search.
 
 Extract any specific parameters:
 - "accused_name": Accused name.
@@ -369,7 +368,7 @@ Extract any specific parameters:
 
 You MUST respond strictly in valid JSON format matching this schema:
 {
-  "tool": "risk" | "network" | "map" | "chart" | "finance" | "socio" | "similar" | "forecast" | "text" | "ocr" | "cdr" | "biometrics" | "dispatch" | "timeline" | "early_warning" | "case_summary" | "general",
+  "tool": "network" | "map" | "chart" | "finance" | "socio" | "similar" | "forecast" | "text" | "ocr" | "cdr" | "biometrics" | "dispatch" | "timeline" | "early_warning" | "case_summary" | "general",
   "parameters": {
     "accused_name": "extracted_name_or_null",
     "district": "extracted_district_or_null",
@@ -753,10 +752,6 @@ function summarizeData(toolName, data) {
     return `Trends: ${data.monthly.length} months. Districts: ${data.district?.length || 0}. Seasonal: ${Object.keys(data.seasonal || {}).join(', ')}`;
   }
   
-  if (toolName === 'risk' && data && data.name) {
-    return `Suspect: ${data.name}, Score: ${(data.overall_score*100).toFixed(0)}%, Threat: ${data.threat_level}. Factors: ${data.factors?.map(f=>f.factor).join(', ')}. Incidents: ${data.incidents?.length || 0}`;
-  }
-  
   if (toolName === 'finance' && data) {
     if (data.nodes) return `Financial: ${data.nodes.length} accounts, ${data.edges?.length || 0} transfers. Total: Rs ${data.totalAmount?.toLocaleString('en-IN') || 0}. Suspicious: ${data.suspiciousCount || 0}`;
     if (data.overview) return `Financial overview: ${data.overview.length} FIRs with transactions`;
@@ -775,11 +770,11 @@ function summarizeData(toolName, data) {
   }
   
   if (toolName === 'timeline' && data && data.timeline) {
-    return `Timeline: ${data.timeline.length} events for ${data.summary?.overview?.fir_number}. Leads: ${data.summary?.leads?.length || 0}. Escalations: ${data.summary?.escalations?.length || 0}`;
+    return `Timeline: ${data.timeline.length} events for ${data.summary?.overview?.fir_number}. Leads: ${data.summary?.leads?.length || 0}`;
   }
   
   if (toolName === 'early_warning' && data && data.alerts) {
-    return `Early Warning: ${data.summary?.total_alerts || 0} alerts. Critical: ${data.summary?.critical_count || 0}. Repeat offenders: ${data.summary?.repeat_offenders || 0}. Gangs: ${data.summary?.active_gangs || 0}`;
+    return `Case-pattern alerts: ${data.summary?.total_alerts || 0}. Geographic clusters: ${data.summary?.geo_hotspots || 0}. Temporal surges: ${data.summary?.temporal_surges || 0}`;
   }
   
   if (toolName === 'case_summary' && data && data.summary) {
@@ -802,18 +797,7 @@ function summarizeData(toolName, data) {
 function generateDynamicNarrative(queryText, toolName, retrievedData) {
   const q = (queryText || '').toLowerCase();
 
-  // 1. Suspect specific queries
-  if (q.includes('ramesh') || q.includes('gowda')) {
-    return "Sourced intelligence dossier for suspect Ramesh Gowda (FIR-2026-004): Identified as a High-Threat Recidivist with an overall risk score of 98.2%. Linked to organized Hawala financial crime networks transferring ₹45 Lakhs across Mysuru and Bengaluru City. Active Non-Bailable Warrant issued by CMM Court.";
-  }
-  if (q.includes('rupa') || q.includes('naik')) {
-    return "Sourced intelligence profile for suspect Rupa Naik: Identified as primary operative in organized cyber financial crime. Cellular CDR pings confirm movement along Koramangala and MG Road cell towers. Currently under active electronic surveillance.";
-  }
-  if (q.includes('mohammad') || q.includes('sharief')) {
-    return "Intelligence record for Mohammad Sharief: Primary syndicate operative linked to multi-district financial fraud and cyber identity theft under FIR-2026-001. Absconding under active court warrant with cross-district alert flagged.";
-  }
-
-  // 2. Legal BNS / IPC Queries
+  // 1. Legal BNS / IPC Queries
   if (q.includes('bns') || q.includes('ipc') || q.includes('section') || q.includes('law') || q.includes('charge')) {
     if (q.includes('fraud') || q.includes('cheat') || q.includes('420') || q.includes('318') || q.includes('lakh') || q.includes('money')) {
       return "Under Bharatiya Nyaya Sanhita (BNS) 2023, digital financial fraud is charged under BNS Section 318 (replacing IPC Section 420 - Cheating). Penalty: Up to 7 years imprisonment. Classification: Cognizable, Non-Bailable. Recommended immediate bank account freeze under Section 91 CrPC.";
@@ -827,7 +811,7 @@ function generateDynamicNarrative(queryText, toolName, retrievedData) {
     return "Bharatiya Nyaya Sanhita (BNS) 2023 replaces legacy IPC provisions. Key mappings: IPC 302 -> BNS 103 (Murder), IPC 420 -> BNS 318 (Cheating), IPC 379 -> BNS 303 (Theft), IPC 307 -> BNS 109 (Attempt to Murder). All charges auto-mapped in KSP Case Dossiers.";
   }
 
-  // 3. Hotspot / Map / Precinct Queries
+  // 2. Hotspot / Map / Precinct Queries
   if (toolName === 'map' || q.includes('map') || q.includes('hotspot') || q.includes('location') || q.includes('district') || q.includes('koramangala')) {
     if (Array.isArray(retrievedData) && retrievedData.length > 0) {
       const topLoc = retrievedData[0];
@@ -836,38 +820,38 @@ function generateDynamicNarrative(queryText, toolName, retrievedData) {
     return "Geospatial cluster analysis across Karnataka's 31 districts indicates active crime density in Bengaluru City, Mysuru, and Hubballi-Dharwad. 24 active hotspot coordinates mapped for emergency patrol routing.";
   }
 
-  // 4. Financial & Hawala Queries
+  // 3. Financial & Hawala Queries
   if (toolName === 'finance' || q.includes('bank') || q.includes('hawala') || q.includes('money') || q.includes('transaction') || q.includes('transfer')) {
     return "Financial forensics analysis: Traced multi-tier transaction flow totaling ₹45,00,000 across 8 linked bank accounts. Detected 3 suspicious high-velocity transfers through mule accounts in Mysuru jurisdiction under active investigation.";
   }
 
-  // 5. CDR Cellular Queries
+  // 4. CDR Cellular Queries
   if (toolName === 'cdr' || q.includes('cdr') || q.includes('tower') || q.includes('ping') || q.includes('phone') || q.includes('mobile')) {
     return "Cellular Call Detail Record (CDR) analysis: Tracked chronological ping path across 6 cellular towers. Identified critical spatial collision where suspect phone was registered within 120 meters of crime incident scene.";
   }
 
-  // 6. Forecasting & Early Warning Queries
+  // 5. Forecasting & Early Warning Queries
   if (toolName === 'forecast' || toolName === 'early_warning' || q.includes('predict') || q.includes('warning') || q.includes('forecast') || q.includes('future')) {
     return "KSP Early Warning Engine alert: Predictive spatial density modeling forecasts 89.4% probability of cyber fraud escalation in Bengaluru City and Mysuru over the next 48 hours. Recommended preventive patrol saturation.";
   }
 
-  // 7. General Conversational Queries
+  // 6. General Conversational Queries
   if (q.includes('who are you') || q.includes('what can you do') || q.includes('help') || q.includes('hello') || q.includes('hi')) {
-    return "Greetings Officer! I am the KSP Crime Intelligence AI Assistant powered by Karnataka State Police analytical datastore. I can assist you with searching FIR dossiers, tracking suspect recidivism threat scores, mapping crime hotspots, analyzing financial Hawala trails, parsing CDR cell tower trajectories, and providing BNS legal section compliance.";
+    return "I am the KSP Crime Intelligence prototype assistant. I can help search FIR dossiers, review case-linked records, map case-level patterns, analyze financial trails, and provide BNS legal-section information. Individual risk and threat scoring are disabled.";
   }
 
-  // 8. General Q&A / Criminology Questions
+  // 7. General Q&A / Criminology Questions
   if (q.includes('recidivism') || q.includes('score') || q.includes('risk')) {
-    return "Recidivism threat scoring evaluates 4 weighted indicators: conviction history (40%), syndicate network linkages (25%), IPC/BNS charge severity (20%), and violent offense history (15%) to compute a normalized score from 0.0% to 100.0%.";
+    return "The prototype does not calculate individual risk, recidivism, or threat scores. Review verified case records and evidence directly.";
   }
 
-  // 9. Generic query fallback incorporating query text and summary data
+  // 8. Generic query fallback incorporating query text and summary data
   const summary = summarizeData(toolName, retrievedData);
   if (summary && summary !== 'No data' && summary !== 'Empty result set') {
     return `Investigative response for "${queryText}": Sourced state police datastore (${toolName.toUpperCase()} Engine). Records analyzed: ${summary.substring(0, 180)}. All evidence sources verified under RLS audit.`;
   }
 
-  return `Investigative query "${queryText}" processed successfully against Karnataka State Police datastore. Sourced ${toolName.toUpperCase()} analytics module. No high-risk anomalies detected for this parameter.`;
+  return `Query "${queryText}" completed using the ${toolName.toUpperCase()} module. No additional matching case records were returned.`;
 }
 
 /**
