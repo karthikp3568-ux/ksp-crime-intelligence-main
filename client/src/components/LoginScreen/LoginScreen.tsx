@@ -9,12 +9,7 @@ interface LoginUser {
   name: string;
 }
 
-const MOCK_CREDENTIALS: Record<string, LoginUser> = {
-  'INV-1001': { userId: 'INV-1001', role: 'Investigator', rank: 'SI', name: 'Meera Nair' },
-  'ANA-2001': { userId: 'ANA-2001', role: 'Analyst', rank: 'DA', name: 'Priya Sharma' },
-  'SUP-3001': { userId: 'SUP-3001', role: 'Supervisor', rank: 'ACP', name: 'Raghavendra K.' },
-  'POL-4001': { userId: 'POL-4001', role: 'Policymaker', rank: 'DGP', name: 'Srinivas M.' },
-};
+const DEMO_ONLY_NOTE = 'Synthetic data only. This system is a decision-support prototype and does not trigger real enforcement actions.';
 
 interface LoginScreenProps {
   onLoginSuccess: (userId: string, role: string) => void;
@@ -33,9 +28,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   const [countdown, setCountdown] = useState(30);
   const [canResend, setCanResend] = useState(false);
 
-  // Auto-detect matching officer profile as user types
   const upperBadge = badgeId.toUpperCase().trim();
-  const matchedOfficer = MOCK_CREDENTIALS[upperBadge] || null;
 
   useEffect(() => {
     let timer: any;
@@ -48,38 +41,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     }
     return () => clearInterval(timer);
   }, [step, countdown]);
-
-  // Helper to create a valid structured demo JWT token for local evaluation
-  const createDemoJwtToken = (officer: LoginUser) => {
-    const b64 = (obj: any) => {
-      try {
-        return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      } catch (e) {
-        return btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      }
-    };
-    const header = { alg: 'HS256', typ: 'JWT' };
-    const payload = {
-      sub: officer.userId,
-      name: officer.name,
-      rank: officer.rank,
-      role: officer.role,
-      district: 'Bengaluru City',
-      policeStation: 'Bengaluru City Central PS',
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + 86400
-    };
-    return `${b64(header)}.${b64(payload)}.demo_signature`;
-  };
-
-  // Direct login — bypasses backend auth for prototype demo
-  const directLogin = (badge: string) => {
-    const officer = MOCK_CREDENTIALS[badge];
-    if (officer) {
-      localStorage.setItem('ksp_jwt_token', createDemoJwtToken(officer));
-      onLoginSuccess(officer.userId, officer.role);
-    }
-  };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +64,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       return;
     }
 
-    // Try backend auth first; fall back to direct login for prototype
     try {
       setIsSubmitting(true);
       const res = await api.login(cleanBadge, password);
@@ -118,14 +78,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         setError(res.error || 'Authentication failed. Please verify credentials.');
       }
     } catch (err: any) {
-      // Backend unreachable — use direct login for prototype demo
-      const officer = MOCK_CREDENTIALS[cleanBadge];
-      if (officer && password === 'ksp2026') {
-        localStorage.setItem('ksp_jwt_token', createDemoJwtToken(officer));
-        onLoginSuccess(officer.userId, officer.role);
-        return;
-      }
-      setError('Invalid Badge ID or password.');
+      setError(err?.message || 'Authentication failed. Please verify credentials.');
     } finally {
       setIsSubmitting(false);
     }
@@ -141,12 +94,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       return;
     }
 
-    // Complete login using stored temporary session
+    // Complete login using stored temporary session. Trust only the server-issued session data,
+    // and reject unknown roles before allowing access to protected UI.
     const tempUserId = localStorage.getItem('ksp_temp_user_id');
     const tempUserRole = localStorage.getItem('ksp_temp_user_role');
 
     if (!tempUserId || !tempUserRole) {
       setError('Authentication session expired. Please log in again.');
+      setStep('credentials');
+      return;
+    }
+
+    const allowedRoles = ['Investigator', 'Analyst', 'Supervisor', 'Policymaker'];
+    if (!allowedRoles.includes(tempUserRole)) {
+      localStorage.removeItem('ksp_temp_user_id');
+      localStorage.removeItem('ksp_temp_user_role');
+      setError('Authentication failed: invalid user role returned by the server.');
       setStep('credentials');
       return;
     }
@@ -216,6 +179,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       {/* Main Content — Centered Login */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-800">
+            {DEMO_ONLY_NOTE}
+          </div>
 
           {/* Login Card */}
           <div className="bg-white border border-[#d1d9e6] rounded-lg shadow-xl overflow-hidden">

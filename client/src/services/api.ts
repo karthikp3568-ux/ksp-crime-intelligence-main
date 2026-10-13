@@ -24,12 +24,19 @@ const getBaseUrl = () => {
 
 export const BASE_URL = getBaseUrl();
 
-// In-memory fallback state for collaborative workspace
-let _mockPinnedAssets: Array<{ id: number; asset_type: 'fir' | 'accused'; asset_id: string; details: string; pinned_at: string }> = [
-  { id: 1, asset_type: 'fir', asset_id: 'FIR-2026-004', details: 'Financial fraud case in Mysuru involving Hawala channels', pinned_at: new Date().toISOString() },
-  { id: 2, asset_type: 'accused', asset_id: 'Ramesh Gowda', details: 'Linked to an organized syndicate case record', pinned_at: new Date().toISOString() }
+// Synthetic demo state only. This is explicitly labeled so the UI never implies real system data.
+const SYNTHETIC_WORKSPACE_NOTICE = 'Synthetic workspace state only: demo data for prototype validation.';
+const syntheticPinnedAssets: Array<{ id: number; asset_type: 'fir' | 'accused'; asset_id: string; details: string; pinned_at: string }> = [
+  { id: 1, asset_type: 'fir', asset_id: 'FIR-2026-004', details: 'Synthetic financial fraud case in Mysuru involving Hawala channels', pinned_at: new Date().toISOString() },
+  { id: 2, asset_type: 'accused', asset_id: 'Ramesh Gowda', details: 'Synthetic linked record for a prototype syndicate scenario', pinned_at: new Date().toISOString() }
 ];
-let _mockWorkspaceNotes = 'Collaborative Notes: Active focus on Rupa Naik and associated Hawala money trail. Regional intelligence team investigating Koramangala cyber incidents.';
+const syntheticWorkspaceNotes = `${SYNTHETIC_WORKSPACE_NOTICE} Active focus on Rupa Naik and associated Hawala money trail. Regional intelligence team investigating Koramangala cyber incidents.`;
+const workspaceFallbackState = {
+  success: true,
+  notes: syntheticWorkspaceNotes,
+  pinned: syntheticPinnedAssets,
+  pinnedAssets: syntheticPinnedAssets,
+};
 
 export interface ChatResponse {
   success: boolean;
@@ -987,12 +994,7 @@ export const api = {
         };
       }
     } catch (e) {}
-    return {
-      success: true,
-      notes: _mockWorkspaceNotes,
-      pinned: _mockPinnedAssets,
-      pinnedAssets: _mockPinnedAssets
-    };
+    return workspaceFallbackState;
   },
 
   /**
@@ -1006,14 +1008,13 @@ export const api = {
       });
       if (response.ok) return await response.json();
     } catch (e) {}
-    
-    // Local mock toggle fallback
-    const idx = _mockPinnedAssets.findIndex(a => a.asset_type === assetType && a.asset_id === assetId);
+
+    const idx = syntheticPinnedAssets.findIndex(a => a.asset_type === assetType && a.asset_id === assetId);
     let isPinned = false;
     if (idx >= 0) {
-      _mockPinnedAssets.splice(idx, 1);
+      syntheticPinnedAssets.splice(idx, 1);
     } else {
-      _mockPinnedAssets.unshift({
+      syntheticPinnedAssets.unshift({
         id: Date.now(),
         asset_type: assetType,
         asset_id: assetId,
@@ -1022,7 +1023,7 @@ export const api = {
       });
       isPinned = true;
     }
-    return { success: true, pinned: isPinned, message: 'Asset updated in collaborative workspace.' };
+    return { success: true, pinned: isPinned, message: 'Synthetic workspace asset updated for prototype review.' };
   },
 
   /**

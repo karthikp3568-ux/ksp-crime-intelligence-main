@@ -11,7 +11,10 @@ import { Clock, LogOut, RefreshCw, Database, ShieldAlert, Phone, Globe, Shield, 
 import { api } from './services/api';
 import './App.css';
 
-type UserRole = 'Investigator' | 'Analyst' | 'Supervisor' | 'Policymaker';
+const ALLOWED_ROLES = ['Investigator', 'Analyst', 'Supervisor', 'Policymaker'] as const;
+type UserRole = typeof ALLOWED_ROLES[number];
+
+const isAllowedRole = (role: string | null): role is UserRole => !!role && ALLOWED_ROLES.includes(role as UserRole);
 
 const ROLE_LABELS: Record<UserRole, { rank: string; name: string }> = {
   Investigator: { rank: 'SI', name: 'Meera Nair' },
@@ -22,7 +25,8 @@ const ROLE_LABELS: Record<UserRole, { rank: string; name: string }> = {
 
 function App() {
   const [activeRole, setActiveRole] = useState<UserRole | null>(() => {
-    return (localStorage.getItem('ksp_user_role') as UserRole) || null;
+    const storedRole = localStorage.getItem('ksp_user_role');
+    return isAllowedRole(storedRole) ? storedRole : null;
   });
   const [userId, setUserId] = useState<string | null>(() => {
     return localStorage.getItem('ksp_user_id') || null;
@@ -133,11 +137,23 @@ function App() {
   };
 
   const handleLoginSuccess = (uid: string, urole: string) => {
+    const safeRole = isAllowedRole(urole) ? urole : null;
+    if (!safeRole) {
+      setUserId(null);
+      setActiveRole(null);
+      setMfaVerified(false);
+      localStorage.removeItem('ksp_user_id');
+      localStorage.removeItem('ksp_user_role');
+      localStorage.removeItem('ksp_mfa_verified');
+      localStorage.removeItem('ksp_jwt_token');
+      return;
+    }
+
     setUserId(uid);
-    setActiveRole(urole as UserRole);
+    setActiveRole(safeRole);
     setMfaVerified(true);
     localStorage.setItem('ksp_user_id', uid);
-    localStorage.setItem('ksp_user_role', urole);
+    localStorage.setItem('ksp_user_role', safeRole);
     localStorage.setItem('ksp_mfa_verified', 'true');
   };
 
@@ -193,8 +209,10 @@ function App() {
     }
   };
 
-  // Switch to Login screen if not authenticated, role is invalid, or JWT token is missing
-  if (!userId || !activeRole || !mfaVerified || !ROLE_LABELS[activeRole] || !localStorage.getItem('ksp_jwt_token')) {
+  // Switch to Login screen if not authenticated, role is invalid, or JWT token is missing.
+  // Treat localStorage as convenience state only; it is never a trusted source for identity.
+  const hasValidSession = !!userId && !!activeRole && !!mfaVerified && !!ROLE_LABELS[activeRole] && !!localStorage.getItem('ksp_jwt_token');
+  if (!hasValidSession) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
