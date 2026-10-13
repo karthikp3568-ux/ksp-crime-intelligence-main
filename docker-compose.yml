@@ -11,7 +11,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-ksp-crime-intel-jwt-secret-2026-karnataka-police}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a secret of at least 32 bytes}
       - GROQ_API_KEY=${GROQ_API_KEY:-}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - CCTNS_API_BASE=${CCTNS_API_BASE:-}

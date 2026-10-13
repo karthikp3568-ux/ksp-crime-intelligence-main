@@ -3,7 +3,7 @@ import { api } from '../../services/api';
 import {
   Scale, RefreshCw, Loader2, AlertCircle, CheckSquare, Square,
   ChevronUp, ChevronDown, UserCheck, FileCheck, AlertTriangle,
-  ShieldAlert, X, Clock, Search, BarChart3
+  X, Clock, Search, BarChart3
 } from 'lucide-react';
 
 interface WarrantDeskProps {
@@ -22,10 +22,9 @@ interface WarrantRow {
   complainant_name: string;
   days_open: number;
   accused_count: number;
-  max_risk_score: number;
 }
 
-type SortField = 'days_open' | 'max_risk_score' | 'crime_type' | 'status' | 'district';
+type SortField = 'days_open' | 'crime_type' | 'status' | 'district';
 type SortDir = 'asc' | 'desc';
 
 const STATUS_OPTIONS = [
@@ -38,13 +37,6 @@ const OFFICERS = [
   'PI Arun Gowda', 'PI Mahesh Kamath', 'ACP Raghavendra K.',
   'DA Priya Sharma', 'Inspector Suresh Babu'
 ];
-
-const riskColor = (score: number) => {
-  if (score >= 80) return 'text-[#d9251c] bg-red-50 border-red-900/40';
-  if (score >= 60) return 'text-orange-700 bg-orange-950/30 border-orange-900/30';
-  if (score >= 40) return 'text-amber-700 bg-amber-950/30 border-amber-900/30';
-  return 'text-emerald-700 bg-emerald-950/30 border-emerald-900/30';
-};
 
 const urgencyClass = (days: number) => {
   if (days > 60) return 'border-l-4 border-l-red-500';
@@ -140,7 +132,6 @@ export const WarrantDesk: React.FC<WarrantDeskProps> = ({ userId, role }) => {
   const safeWarrants = Array.isArray(warrants) ? warrants : [];
   const overdueCritical = safeWarrants.filter(w => w.days_open > 60).length;
   const overdueAmber = safeWarrants.filter(w => w.days_open > 30 && w.days_open <= 60).length;
-  const highRisk = safeWarrants.filter(w => w.max_risk_score >= 70).length;
 
   return (
     <div className="space-y-5">
@@ -158,12 +149,11 @@ export const WarrantDesk: React.FC<WarrantDeskProps> = ({ userId, role }) => {
       </div>
 
       {/* KPI Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
           { icon: <BarChart3 size={14} className="text-[#6c757d] mx-auto mb-1" />, label: 'Total Cases', val: warrants.length, cls: 'text-[#1e3a5f]' },
           { icon: <AlertTriangle size={14} className="text-[#d9251c] mx-auto mb-1" />, label: 'Critical (>60 days)', val: overdueCritical, cls: 'text-[#d9251c]', border: 'border-red-900/40' },
           { icon: <Clock size={14} className="text-amber-700 mx-auto mb-1" />, label: 'Overdue 30-60d', val: overdueAmber, cls: 'text-amber-700', border: 'border-amber-900/40' },
-          { icon: <ShieldAlert size={14} className="text-orange-700 mx-auto mb-1" />, label: 'High Risk ≥70', val: highRisk, cls: 'text-orange-700', border: 'border-orange-900/40' },
         ].map((kpi, i) => (
           <div key={i} className={`card-panel border ${kpi.border || 'border-[#d1d9e6]'} rounded-lg p-3 text-center`}>
             {kpi.icon}
@@ -236,15 +226,12 @@ export const WarrantDesk: React.FC<WarrantDeskProps> = ({ userId, role }) => {
                   <th className="px-3 py-3 text-left cursor-pointer text-[#6c757d] font-semibold uppercase tracking-wider hover:text-[#1e3a5f]" onClick={() => handleSort('days_open')}>
                     Days Open <SortIcon field="days_open" />
                   </th>
-                  <th className="px-3 py-3 text-left cursor-pointer text-[#6c757d] font-semibold uppercase tracking-wider hover:text-[#1e3a5f]" onClick={() => handleSort('max_risk_score')}>
-                    Risk <SortIcon field="max_risk_score" />
-                  </th>
                   <th className="px-3 py-3 text-left text-[#6c757d] font-semibold uppercase tracking-wider">Accused</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-10 text-[#6c757d] text-xs">No warrants found.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-10 text-[#6c757d] text-xs">No warrants found.</td></tr>
                 ) : filtered.map(w => (
                   <tr key={w.id} className={`border-b border-[#d1d9e6]/60 hover:bg-white/30 transition ${urgencyClass(w.days_open)} ${selected.has(w.id) ? 'bg-[#1e3a5f]/5' : ''}`}>
                     <td className="px-3 py-3">
@@ -269,11 +256,6 @@ export const WarrantDesk: React.FC<WarrantDeskProps> = ({ userId, role }) => {
                       <span className={`font-semibold ${w.days_open > 60 ? 'text-[#d9251c]' : w.days_open > 30 ? 'text-amber-700' : 'text-[#2d4a6f]'}`}>
                         {Math.round(w.days_open)}d
                       </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      {w.max_risk_score > 0
-                        ? <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${riskColor(w.max_risk_score)}`}>{Math.round(w.max_risk_score)}</span>
-                        : <span className="text-slate-600">—</span>}
                     </td>
                     <td className="px-3 py-3 text-[#6c757d]">{w.accused_count}</td>
                   </tr>

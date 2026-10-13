@@ -359,7 +359,6 @@ def main():
         age = random.randint(18, 55)
         gender = random.choice(["M", "F"])
         prior_conv = random.choices([0, 1, 2, 3], weights=[70, 15, 10, 5], k=1)[0]
-        risk_score = round(min(max(prior_conv * 0.25 + random.uniform(0.1, 0.4), 0.1), 0.95), 2)
         gang = random.choice([None, None, "Peenya Tigers", "Outer-ring Gang"])
         edu = random.choice(["Secondary", "Graduate", "Primary", "Illiterate"])
         marital = random.choice(["Single", "Married"])
@@ -367,8 +366,8 @@ def main():
         
         fir_accused_data.append((
             i, accused_name, age, gender, random.choice(["Unemployed", "Driver"]), 
-            f"Layout {random.randint(1, 10)}, {dist_name}", prior_conv, risk_score, 
-            "v1.0-formula", risk_score - 0.05, risk_score + 0.05, gang, edu, marital, migration
+            f"Layout {random.randint(1, 10)}, {dist_name}", prior_conv,
+            gang, edu, marital, migration
         ))
         
         cctns_accused_data.append((
@@ -388,7 +387,7 @@ def main():
     cursor.executemany("INSERT INTO FIR (id, fir_number, district, police_station, crime_type, ipc_section, bns_section, status, date_reported, date_occurrence, description, modus_operandi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", fir_data)
     cursor.executemany("INSERT INTO Location (fir_id, latitude, longitude, address, district, area_type) VALUES (?, ?, ?, ?, ?, ?)", location_data)
     cursor.executemany("INSERT INTO FIR_Victim (fir_id, name, age, gender, occupation, address, injury_type) VALUES (?, ?, ?, ?, ?, ?, ?)", fir_victim_data)
-    cursor.executemany("INSERT INTO FIR_Accused (fir_id, name, age, gender, occupation, address, prior_convictions, risk_score, risk_model_version, risk_confidence_low, risk_confidence_high, gang_affiliation, education_level, marital_status, migration_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", fir_accused_data)
+    cursor.executemany("INSERT INTO FIR_Accused (fir_id, name, age, gender, occupation, address, prior_convictions, gang_affiliation, education_level, marital_status, migration_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", fir_accused_data)
     
     cursor.executemany("INSERT INTO CaseMaster (CaseMasterID, CrimeNo, CaseNo, CrimeRegisteredDate, PolicePersonID, PoliceStationID, CaseCategoryID, GravityOffenceID, CrimeMajorHeadID, CrimeMinorHeadID, CaseStatusID, CourtID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", case_master_data)
     cursor.executemany("INSERT INTO Inv_OccuranceTime (CaseMasterID, IncidentFromDate, IncidentToDate, InfoReceivedPSDate) VALUES (?, ?, ?, ?)", occurance_time_data)

@@ -195,16 +195,12 @@ def main():
                 marital = random.choice(MARITAL_STATUSES)
                 mig = random.choice(MIGRATION_STATUSES)
 
-            base_score = priors * 0.15 + (1 if age < 25 else 0) * 0.1 + (1 if gang else 0) * 0.3
-            risk_score = min(max(base_score + random.uniform(0.1, 0.35), 0.1), 0.95)
-
             cursor.execute("""
                 INSERT INTO Accused (fir_id, name, age, gender, occupation, address,
-                    prior_convictions, risk_score, gang_affiliation,
+                    prior_convictions, gang_affiliation,
                     education_level, marital_status, migration_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (fir_id, name, age, gender, occ, addr, priors, round(risk_score, 2),
-                  gang, edu, marital, mig))
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (fir_id, name, age, gender, occ, addr, priors, gang, edu, marital, mig))
 
         # Victims
         num_victims = random.choice([1, 1, 2])
@@ -383,7 +379,7 @@ def main():
     audit_samples = [
         ("INV-1002", "Investigator", "Search history for FIR-2026-003", "Case Details View", "2026-06-13T10:14:00Z", "10.12.1.42", "Confidential"),
         ("ANA-2041", "Analyst", "Hotspot query cyber crime in Bengaluru", "Map Rendered", "2026-06-13T11:22:30Z", "10.12.1.88", "Restricted"),
-        ("SUP-3001", "Supervisor", "Retrieve risk score for Mohammad Sharief", "Profile scorecard read", "2026-06-13T14:45:10Z", "10.12.1.200", "Secret"),
+        ("SUP-3001", "Supervisor", "Review case records for Mohammad Sharief", "Case record read", "2026-06-13T14:45:10Z", "10.12.1.200", "Secret"),
         ("POL-4001", "Policymaker", "State-wide crime trend comparison", "Trend Chart Rendered", "2026-06-13T15:10:00Z", "10.12.1.250", "Restricted"),
         ("INV-1003", "Investigator", "Financial trail for FIR-2026-012", "Transaction Graph View", "2026-06-13T16:30:00Z", "10.12.1.45", "Secret")
     ]

@@ -21,7 +21,6 @@ interface InvestigationTimelineProps {
       financial: any;
       network: any;
       leads: string[];
-      escalations: string[];
     };
     suspects: any[];
     leads: string[];
@@ -49,11 +48,9 @@ export const InvestigationTimeline: React.FC<InvestigationTimelineProps> = ({ da
     suspects: [],
     financial: {},
     network: {},
-    leads: [],
-    escalations: []
+    leads: []
   };
   const leads = Array.isArray(summary?.leads) ? summary.leads : [];
-  const escalations = Array.isArray(summary?.escalations) ? summary.escalations : [];
   const suspects = Array.isArray(summary?.suspects) ? summary.suspects : [];
 
   return (
@@ -108,18 +105,6 @@ export const InvestigationTimeline: React.FC<InvestigationTimelineProps> = ({ da
         </div>
       )}
 
-      {/* Escalation Flags */}
-      {escalations.length > 0 && (
-        <div className="bg-red-900/20 border border-red-800/40 rounded-lg p-4">
-          <h4 className="text-xs font-bold text-[#d9251c] uppercase tracking-wider mb-2">Escalation Flags</h4>
-          <div className="space-y-1">
-            {escalations.map((esc, idx) => (
-              <p key={idx} className="text-[11px] text-[#d9251c]">{esc}</p>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Suspects Overview */}
       {suspects.length > 0 && (
         <div className="bg-white border border-[#d1d9e6] rounded-lg p-4">
@@ -129,13 +114,8 @@ export const InvestigationTimeline: React.FC<InvestigationTimelineProps> = ({ da
               <div key={idx} className="bg-[#f0f4f8]/50 rounded-lg p-2.5 border border-[#d1d9e6]">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-[#1e3a5f]">{s.name}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
-                    s.threat_level === 'Critical' ? 'bg-red-500/20 text-[#d9251c]' :
-                    s.threat_level === 'Medium' ? 'bg-amber-500/20 text-amber-700' :
-                    'bg-emerald-500/20 text-emerald-700'
-                  }`}>{s.threat_level}</span>
                 </div>
-                <p className="text-[10px] text-[#6c757d] mt-0.5">Score: {((s.risk_score || 0) * 100).toFixed(0)}% • {s.gang || 'No gang'}</p>
+                <p className="text-[10px] text-[#6c757d] mt-0.5">{s.gang || 'No recorded affiliation'}</p>
               </div>
             ))}
           </div>

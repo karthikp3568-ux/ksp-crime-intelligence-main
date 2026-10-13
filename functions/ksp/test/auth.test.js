@@ -1,5 +1,12 @@
 const assert = require('assert');
-const { generateToken, verifyToken } = require('../auth-middleware/jwt-utils');
+const crypto = require('crypto');
+const {
+  generateToken,
+  verifyToken,
+  hashPassword,
+  verifyPassword,
+  needsPasswordRehash
+} = require('../auth-middleware/jwt-utils');
 const authMiddleware = require('../auth-middleware');
 
 // Set test environment secret
@@ -24,6 +31,34 @@ const decoded = verifyToken(token);
 assert.strictEqual(decoded.sub, 'INV-1001', 'Badge ID must match sub claim');
 assert.strictEqual(decoded.role, 'Investigator', 'Role must match payload');
 console.log('✓ Test 1 Passed: Valid JWT Generation & Decoding');
+
+// Passwords use bcrypt; legacy synthetic SHA-256 hashes verify once for rehash-on-login.
+const bcryptHash = hashPassword('correct horse battery staple');
+assert.ok(/^\$2[aby]\$12\$/.test(bcryptHash), 'New password hashes must use bcrypt cost 12');
+assert.ok(verifyPassword('correct horse battery staple', bcryptHash), 'Correct password must verify');
+assert.ok(!verifyPassword('wrong password', bcryptHash), 'Incorrect password must not verify');
+assert.strictEqual(needsPasswordRehash(bcryptHash), false, 'Bcrypt hash must not require rehash');
+
+const legacySalt = 'legacy-synthetic-salt';
+const legacyDigest = crypto.createHash('sha256').update(legacySalt + 'legacy-password').digest('hex');
+const legacyHash = `${legacySalt}:${legacyDigest}`;
+assert.ok(verifyPassword('legacy-password', legacyHash), 'Legacy demo hash must verify for upgrade');
+assert.ok(!verifyPassword('wrong-password', legacyHash), 'Legacy hash must reject a wrong password');
+assert.strictEqual(needsPasswordRehash(legacyHash), true, 'Legacy hash must require bcrypt rehash');
+console.log('✓ Test 2 Passed: Bcrypt Password Hashing and Legacy Hash Upgrade');
+
+const base64url = value => Buffer.from(JSON.stringify(value)).toString('base64url');
+assert.throws(
+  () => verifyToken(`${base64url({ alg: 'HS256', typ: 'JWT' })}.${base64url({ sub: 'INV-1001', role: 'Investigator', exp: Date.now() / 1000 + 60 })}.demo_signature`),
+  /Invalid token signature/,
+  'Development must reject the legacy demo signature'
+);
+assert.throws(
+  () => verifyToken(`${base64url({ alg: 'none', typ: 'JWT' })}.${base64url({ sub: 'INV-1001', role: 'Investigator', exp: Date.now() / 1000 + 60 })}.demo_signature`),
+  /Unsupported token header/,
+  'Unsigned or unsupported token algorithms must be rejected'
+);
+console.log('✓ Test 3 Passed: Demo and Unsupported JWT Signatures Rejected');
 
 // Test 2: Reject requests with missing Authorization header
 const mockReqNoAuth = {

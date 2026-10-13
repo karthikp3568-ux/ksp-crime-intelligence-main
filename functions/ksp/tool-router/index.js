@@ -1,5 +1,4 @@
 const catalyst = require('../shared/catalyst-sdk').getInitializer();
-const riskScoring = require('../risk-scoring/index');
 const financialAnalysis = require('../financial-analysis/index');
 const similarCases = require('../similar-cases/index');
 const investigationTimeline = require('../investigation-timeline/index');
@@ -15,6 +14,15 @@ module.exports = async (queryText, userId, role, userContext = null) => {
     // Dynamic Row-Level Security (RLS) jurisdiction scope evaluation
     if (!userId || !role) {
       throw new Error('SECURITY VIOLATION: Missing user identity context in tool router execution.');
+    }
+
+    if (/\b(?:recidiv\w*|(?:risk|threat) (?:score|rating|assessment|profile|classification)|profile (?:of )?(?:a )?(?:suspect|accused|offender)|high[- ]risk (?:suspect|accused|offender)|(?:risk|threat) (?:of|for) (?:[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*)*|him|her|them|this person|that person)|(?:suspect|accused|offender|person)\b.{0,40}\b(?:risk|threat)\b)/i.test(queryText)) {
+      return {
+        success: true,
+        tool: 'text',
+        data: null,
+        narrative: 'Individual risk scoring and threat classification are disabled. Review verified case records and evidence without an automated person-level score.'
+      };
     }
 
     let scope;
@@ -51,29 +59,11 @@ module.exports = async (queryText, userId, role, userContext = null) => {
     }
 
     // Legacy fallback routing if Gemini was skipped, failed, or returned an invalid tool
-    const validTools = ['risk', 'network', 'map', 'chart', 'finance', 'socio', 'similar', 'forecast', 'text', 'ocr', 'cdr', 'biometrics', 'dispatch', 'timeline', 'early_warning', 'case_summary', 'general'];
+    const validTools = ['network', 'map', 'chart', 'finance', 'socio', 'similar', 'forecast', 'text', 'ocr', 'cdr', 'biometrics', 'dispatch', 'timeline', 'early_warning', 'case_summary', 'general'];
     if (!tool || !validTools.includes(tool)) {
       extractedParams = {};
       
-      if (query.includes("risk") || query.includes("profile") || query.includes("threat") || query.includes("danger") || query.includes("tell me about") || query.includes("who is") || query.includes("suspect") || query.includes("accused")) {
-        tool = "risk";
-        let targetName = "";
-        if (query.includes("ramesh") || query.includes("gowda")) targetName = "Ramesh Gowda";
-        else if (query.includes("rupa") || query.includes("naik")) targetName = "Rupa Naik";
-        else if (query.includes("sharief") || query.includes("mohammad")) targetName = "Mohammad Sharief";
-        else if (query.includes("subhash") || query.includes("patil")) targetName = "Subhash Patil";
-        else if (query.includes("jacky") || query.includes("jagadish")) targetName = "Jacky";
-        else {
-          const match = queryText.match(/(?:suspect|accused|offender|person|about|for)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i);
-          if (match) {
-            targetName = match[1];
-          } else {
-            targetName = "Ramesh Gowda";
-          }
-        }
-        extractedParams.accused_name = targetName;
-      } 
-      else if (query.includes("biometric") || query.includes("face") || query.includes("mugshot") || query.includes("facial")) {
+      if (query.includes("biometric") || query.includes("face") || query.includes("mugshot") || query.includes("facial")) {
         tool = "biometrics";
         let targetName = "Rupa Naik";
         if (query.includes("ramesh")) targetName = "Ramesh Kumar";
@@ -158,30 +148,6 @@ module.exports = async (queryText, userId, role, userContext = null) => {
     let narrative = "";
 
     // -------------------------------------------------------------
-    // TOOL: RISK PROFILE
-    // -------------------------------------------------------------
-    if (tool === "risk") {
-      const targetName = extractedParams.accused_name;
-      if (targetName) {
-        const riskModifiers = {
-          warrant: query.includes("warrant") || query.includes("abscond"),
-          weapon: query.includes("weapon") || query.includes("firearm") || query.includes("arms"),
-          hawala: query.includes("hawala") || query.includes("bank") || query.includes("financial"),
-          history: query.includes("history") || query.includes("repeat") || query.includes("prior")
-        };
-        const scoreResult = await riskScoring(targetName, riskModifiers, scope);
-        if (scoreResult.success) {
-          data = scoreResult.profile;
-          narrative = `Retrieved the intelligence risk profile for accused '${data.name}'. Calculated recidivism threat score: ${(data.overall_score * 100).toFixed(0)}%. ${data.recommendation}`;
-        }
-      }
-      if (!data) {
-        // If accused name not found, fallback to text search/RAG
-        tool = "text";
-      }
-    }
-
-    // -------------------------------------------------------------
     // TOOL: NETWORK GRAPH
     // -------------------------------------------------------------
     if (tool === "network") {
@@ -197,7 +163,7 @@ module.exports = async (queryText, userId, role, userContext = null) => {
       `);
 
       const accusedWithFirs = await db.execute(`
-        SELECT a.name, a.gang_affiliation, a.prior_convictions, a.risk_score, f.fir_number, f.crime_type, f.district, f.police_station
+        SELECT a.name, a.gang_affiliation, a.prior_convictions, f.fir_number, f.crime_type, f.district, f.police_station
         FROM FIR_Accused a
         JOIN FIR f ON a.fir_id = f.id
         WHERE a.name IN (SELECT name FROM FIR_Accused GROUP BY name HAVING COUNT(fir_id) > 1) 
@@ -230,7 +196,6 @@ module.exports = async (queryText, userId, role, userContext = null) => {
 
         const accId = `acc_${row.name.replace(/\s+/g, '_')}`;
         addNode(accId, row.name, "person", row.gang_affiliation ? "gang" : "accused", {
-          score: row.risk_score,
           details: `Gang: ${row.gang_affiliation || 'None'}. Prior Convictions: ${row.prior_convictions}`
         });
 
@@ -269,12 +234,12 @@ module.exports = async (queryText, userId, role, userContext = null) => {
       });
 
       if (nodes.length < 10) {
-        addNode('acc_Sharief', 'Mohammad Sharief', 'person', 'accused', { score: 0.88, details: 'Role: Syndicate Kingpin' });
-        addNode('acc_Jacky', 'Jagadish @ Jacky', 'person', 'accused', { score: 0.82, details: 'Role: Co-Accused Operator' });
-        addNode('acc_Ramesh', 'Ramesh Gowda', 'person', 'accused', { score: 0.75, details: 'Role: Hawala Money Mule' });
-        addNode('acc_Rupa', 'Rupa Naik', 'person', 'accused', { score: 0.85, details: 'Role: Crime Cell Leader' });
-        addNode('acc_Karthik', 'Karthik V', 'person', 'accused', { score: 0.68, details: 'Role: Phishing Lead' });
-        addNode('acc_Pradeep', 'Pradeep Kumar', 'person', 'accused', { score: 0.79, details: 'Role: SIM Swap Operator' });
+        addNode('acc_Sharief', 'Mohammad Sharief', 'person', 'accused', { details: 'Role: Syndicate Kingpin' });
+        addNode('acc_Jacky', 'Jagadish @ Jacky', 'person', 'accused', { details: 'Role: Co-Accused Operator' });
+        addNode('acc_Ramesh', 'Ramesh Gowda', 'person', 'accused', { details: 'Role: Hawala Money Mule' });
+        addNode('acc_Rupa', 'Rupa Naik', 'person', 'accused', { details: 'Role: Crime Cell Leader' });
+        addNode('acc_Karthik', 'Karthik V', 'person', 'accused', { details: 'Role: Phishing Lead' });
+        addNode('acc_Pradeep', 'Pradeep Kumar', 'person', 'accused', { details: 'Role: SIM Swap Operator' });
         addNode('entity_Vertex', 'Vertex Holdings Ltd', 'entity', 'entity', { details: 'Shell Entity • INR 45L Layering Node' });
         addNode('case_FIR-2026-001', 'FIR-2026-001', 'case', 'case', { details: 'Type: Cyber Fraud (INR 12L)' });
         addNode('case_FIR-2026-004', 'FIR-2026-004', 'case', 'case', { details: 'Type: Financial Fraud (INR 45L)' });
@@ -926,7 +891,7 @@ module.exports = async (queryText, userId, role, userContext = null) => {
         const result = await investigationTimeline(firId);
         if (result.success) {
           data = result;
-          narrative = `Investigation timeline generated with ${result.timeline.length} events for ${result.summary.overview.fir_number}. Case involves ${result.suspects.length} suspects. ${result.leads.length} investigative leads identified. ${result.summary.escalations.length} escalation flags raised.`;
+          narrative = `Investigation timeline generated with ${result.timeline.length} events for ${result.summary.overview.fir_number}. Case involves ${result.suspects.length} suspects. ${result.leads.length} investigative leads identified.`;
         } else {
           tool = "text";
         }
@@ -942,7 +907,7 @@ module.exports = async (queryText, userId, role, userContext = null) => {
       const result = await earlyWarning(scope);
       if (result.success) {
         data = result;
-        narrative = `Enhanced early warning intelligence: ${result.summary.total_alerts} alerts detected — ${result.summary.critical_count} Critical, ${result.summary.high_count} High. ${result.summary.repeat_offenders} repeat offenders, ${result.summary.active_gangs} active gangs, ${result.summary.escalations} escalation patterns, ${result.summary.temporal_surges} temporal surges.`;
+        narrative = `Case-pattern analysis returned ${result.summary.total_alerts} alerts: ${result.summary.mo_clusters} modus-operandi clusters, ${result.summary.geo_hotspots} geographic clusters, and ${result.summary.temporal_surges} temporal surges.`;
       } else {
         tool = "text";
       }

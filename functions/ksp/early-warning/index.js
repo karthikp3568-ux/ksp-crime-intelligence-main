@@ -15,47 +15,11 @@ module.exports = async (scope = null) => {
       scopeParams = [scope.value];
     }
 
-    const repeatOffenders = await db.execute(`
-      SELECT a.name, COUNT(DISTINCT a.fir_id) as case_count, MAX(a.risk_score) as max_risk,
-             a.gang_affiliation, a.prior_convictions,
-             GROUP_CONCAT(DISTINCT f.fir_number) as fir_numbers,
-             GROUP_CONCAT(DISTINCT f.district) as districts,
-             GROUP_CONCAT(DISTINCT f.crime_type) as crime_types
-      FROM FIR_Accused a
-      JOIN FIR f ON a.fir_id = f.id
-      WHERE 1=1 ${scopeFilter}
-      GROUP BY a.name
-      HAVING case_count > 1
-      ORDER BY max_risk DESC, case_count DESC
-      LIMIT 20
-    `, scopeParams);
-
-    repeatOffenders.forEach(offender => {
-      const severity = offender.max_risk >= 0.8 ? 'Critical' : offender.max_risk >= 0.5 ? 'High' : 'Medium';
-      alerts.push({
-        type: 'REPEAT_OFFENDER',
-        severity,
-        title: `Repeat Offender: ${offender.name}`,
-        description: `${offender.case_count} cases across ${offender.districts}. Risk score: ${(offender.max_risk * 100).toFixed(0)}%. ${offender.prior_convictions} prior convictions.`,
-        name: offender.name,
-        case_count: offender.case_count,
-        risk_score: offender.max_risk,
-        fir_numbers: offender.fir_numbers ? offender.fir_numbers.split(',') : [],
-        districts: offender.districts ? offender.districts.split(',') : [],
-        crime_types: offender.crime_types ? offender.crime_types.split(',') : [],
-        recommendation: severity === 'Critical'
-          ? `IMMEDIATE: Deploy investigative review for ${offender.name}. Alert stations in ${offender.districts}. Coordinate with anti-gang unit.`
-          : `Priority case monitoring. Verify evidence chain and update history sheet.`
-      });
-    });
-
     const gangActivity = await db.execute(`
       SELECT a.gang_affiliation as gang_name,
              COUNT(DISTINCT a.name) as member_count,
              COUNT(DISTINCT a.fir_id) as total_cases,
-             GROUP_CONCAT(DISTINCT f.district) as districts,
-             GROUP_CONCAT(DISTINCT a.name) as members,
-             MAX(a.risk_score) as max_risk
+             GROUP_CONCAT(DISTINCT f.district) as districts
       FROM FIR_Accused a
       JOIN FIR f ON a.fir_id = f.id
       WHERE a.gang_affiliation IS NOT NULL ${scopeFilter}
@@ -70,15 +34,14 @@ module.exports = async (scope = null) => {
         type: 'GANG_ACTIVITY',
         severity,
         title: `Gang Activity: ${gang.gang_name}`,
-        description: `${gang.member_count} identified members linked to ${gang.total_cases} cases across ${gang.districts}. Active syndicate requiring inter-district coordination.`,
+        description: `${gang.member_count} records are linked to ${gang.total_cases} cases across ${gang.districts}. Review the underlying case evidence before drawing conclusions.`,
         gang_name: gang.gang_name,
         member_count: gang.member_count,
         total_cases: gang.total_cases,
         districts_active: gang.districts ? gang.districts.split(',') : [],
-        members: gang.members ? gang.members.split(',') : [],
         recommendation: severity === 'Critical'
-          ? `URGENT: Constitute special task force for ${gang.gang_name}. Coordinate across ${gang.districts}. Execute financial intelligence sweep on all known accounts.`
-          : `Monitor member movements. Map association network. Schedule intelligence briefing.`
+          ? `Coordinate case review across ${gang.districts} and verify the underlying evidence before further action.`
+          : `Review the case-link evidence and document any verified association.`
       });
     });
 
@@ -100,12 +63,12 @@ module.exports = async (scope = null) => {
         type: 'MO_CLUSTER',
         severity,
         title: `MO Pattern Cluster: ${cluster.modus_operandi.substring(0, 60)}...`,
-        description: `${cluster.case_count} cases sharing identical modus operandi across ${cluster.districts}. Potential serial offender pattern.`,
+        description: `${cluster.case_count} cases share a modus-operandi description across ${cluster.districts}.`,
         pattern: cluster.modus_operandi,
         case_count: cluster.case_count,
         affected_districts: cluster.districts ? cluster.districts.split(',') : [],
         fir_numbers: cluster.fir_numbers ? cluster.fir_numbers.split(',') : [],
-        recommendation: `Conduct MO cross-reference analysis. Check accused overlap across cases. Consider geographic profiling for serial pattern.`
+        recommendation: `Compare the source case records and evidence to verify whether the shared description indicates a meaningful pattern.`
       });
     });
 
@@ -133,35 +96,6 @@ module.exports = async (scope = null) => {
         incident_count: cluster.incident_count,
         concentration_score: Math.min(1.0, cluster.incident_count / 15),
         recommendation: `Increase patrol frequency in ${cluster.district} ${cluster.area_type} zones. Deploy community policing initiatives. Review CCTV coverage gaps.`
-      });
-    });
-
-    const escalationPatterns = await db.execute(`
-      SELECT a.name, a.gang_affiliation,
-             COUNT(DISTINCT a.fir_id) as case_count,
-             MIN(a.risk_score) as initial_risk,
-             MAX(a.risk_score) as current_risk,
-             GROUP_CONCAT(DISTINCT f.date_reported ORDER BY f.date_reported) as dates
-      FROM FIR_Accused a
-      JOIN FIR f ON a.fir_id = f.id
-      WHERE 1=1 ${scopeFilter}
-      GROUP BY a.name
-      HAVING case_count >= 2 AND current_risk > initial_risk
-      ORDER BY (current_risk - initial_risk) DESC
-      LIMIT 10
-    `, scopeParams);
-
-    escalationPatterns.forEach(pattern => {
-      const scoreChange = pattern.current_risk - pattern.initial_risk;
-      alerts.push({
-        type: 'ESCALATION',
-        severity: scoreChange > 0.3 ? 'Critical' : 'High',
-        title: `Escalation Pattern: ${pattern.name}`,
-        description: `Risk score escalated from ${(pattern.initial_risk * 100).toFixed(0)}% to ${(pattern.current_risk * 100).toFixed(0)}% across ${pattern.case_count} incidents. Behavioral escalation detected.`,
-        name: pattern.name,
-        score_change: scoreChange,
-        incidents: pattern.case_count,
-        recommendation: `URGENT: Escalating threat profile. Recommend preemptive surveillance increase. Alert patrol units in operating area. Schedule threat assessment briefing.`
       });
     });
 
@@ -200,9 +134,7 @@ module.exports = async (scope = null) => {
     const recommendations = [];
     if (criticalCount > 0) recommendations.push(`${criticalCount} CRITICAL alerts require immediate tactical response`);
     if (gangActivity.length > 0) recommendations.push(`Coordinate inter-district operations against ${gangActivity.length} active syndicates`);
-    if (repeatOffenders.length > 0) recommendations.push(`Prioritize surveillance on ${repeatOffenders.length} repeat offenders`);
     if (geoClusters.length > 0) recommendations.push(`Increase patrol density in ${geoClusters.length} geographic hotspots`);
-    if (escalationPatterns.length > 0) recommendations.push(`${escalationPatterns.length} offenders showing behavioral escalation - reassess threat levels`);
 
     return {
       success: true,
@@ -211,11 +143,9 @@ module.exports = async (scope = null) => {
         total_alerts: alerts.length,
         critical_count: criticalCount,
         high_count: highCount,
-        repeat_offenders: repeatOffenders.length,
         active_gangs: gangActivity.length,
         mo_clusters: moClusters.length,
         geo_hotspots: geoClusters.length,
-        escalations: escalationPatterns.length,
         temporal_surges: recentCluster.length,
         recommendations
       }

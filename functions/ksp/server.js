@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const authMiddleware = require('./auth-middleware/index');
-const { generateToken, verifyToken, refreshToken, verifyPassword } = require('./auth-middleware/jwt-utils');
+const { generateToken, verifyToken, refreshToken, hashPassword, verifyPassword, needsPasswordRehash } = require('./auth-middleware/jwt-utils');
 const { getRLSFilter, getUserScope } = require('./auth-middleware/rls-filter');
 const writeAuditLog = require('./audit-log/index');
 
@@ -168,6 +168,13 @@ app.post('/api/auth/login', async (req, res) => {
         success: false,
         error: 'Authentication failed. Invalid credentials.'
       });
+    }
+
+    if (needsPasswordRehash(officer.password_hash)) {
+      await db.run(
+        "UPDATE Officers SET password_hash = ? WHERE id = ?",
+        [hashPassword(password), officer.id]
+      );
     }
 
     // Reset failed attempts
@@ -745,7 +752,7 @@ app.post('/api/cctns/sync', async (req, res) => {
   }
 });
 
-// 21. Warrant Desk — List all FIRs with case metadata and risk scores (RLS Enforced)
+// 21. Warrant Desk — List FIRs with case metadata (RLS Enforced)
 app.get('/api/warrants', async (req, res) => {
   try {
     const db = catalyst.datastore();
@@ -761,10 +768,7 @@ app.get('/api/warrants', async (req, res) => {
         f.date_occurrence,
         (SELECT name FROM FIR_Victim WHERE fir_id = f.id LIMIT 1) AS complainant_name,
         CAST(julianday('now') - julianday(f.date_occurrence) AS INTEGER) AS days_open,
-        (SELECT COUNT(*) FROM FIR_Accused WHERE fir_id = f.id) AS accused_count,
-        COALESCE(
-          (SELECT MAX(a.risk_score) FROM FIR_Accused a WHERE a.fir_id = f.id), 0
-        ) AS max_risk_score
+        (SELECT COUNT(*) FROM FIR_Accused WHERE fir_id = f.id) AS accused_count
       FROM FIR f
       WHERE 1=1 ${clause}
       ORDER BY days_open DESC
@@ -896,20 +900,12 @@ app.get('/api/dashboard/stats', async (req, res) => {
       ${accusedFilter} AND a.gang_affiliation IS NOT NULL
     `, accusedParams);
     
-    const highRiskRow = await db.execute(`
-      SELECT COUNT(DISTINCT a.name) as count 
-      FROM FIR_Accused a
-      JOIN FIR f ON a.fir_id = f.id
-      ${accusedFilter} AND a.risk_score >= 0.7
-    `, accusedParams);
-    
     res.json({
       success: true,
       stats: {
         total: totalRow[0]?.count || 0,
         open: openRow[0]?.count || 0,
-        syndicates: syndicateRow[0]?.count || 0,
-        highRisk: highRiskRow[0]?.count || 0
+        syndicates: syndicateRow[0]?.count || 0
       }
     });
   } catch (err) {

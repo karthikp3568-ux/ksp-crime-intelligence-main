@@ -24,19 +24,27 @@ const getBaseUrl = () => {
 
 export const BASE_URL = getBaseUrl();
 
-// In-memory fallback state for collaborative workspace
-let _mockPinnedAssets: Array<{ id: number; asset_type: 'fir' | 'accused'; asset_id: string; details: string; pinned_at: string }> = [
-  { id: 1, asset_type: 'fir', asset_id: 'FIR-2026-004', details: 'Financial fraud case in Mysuru involving Hawala channels', pinned_at: new Date().toISOString() },
-  { id: 2, asset_type: 'accused', asset_id: 'Ramesh Gowda', details: 'High risk score (98.2%) linked to organized syndicate', pinned_at: new Date().toISOString() }
+// Synthetic demo state only. This is explicitly labeled so the UI never implies real system data.
+const SYNTHETIC_WORKSPACE_NOTICE = 'Synthetic workspace state only: demo data for prototype validation.';
+const syntheticPinnedAssets: Array<{ id: number; asset_type: 'fir' | 'accused'; asset_id: string; details: string; pinned_at: string }> = [
+  { id: 1, asset_type: 'fir', asset_id: 'FIR-2026-004', details: 'Synthetic financial fraud case in Mysuru involving Hawala channels', pinned_at: new Date().toISOString() },
+  { id: 2, asset_type: 'accused', asset_id: 'Ramesh Gowda', details: 'Synthetic linked record for a prototype syndicate scenario', pinned_at: new Date().toISOString() }
 ];
-let _mockWorkspaceNotes = 'Collaborative Notes: Active focus on Rupa Naik and associated Hawala money trail. Regional intelligence team investigating Koramangala cyber incidents.';
+const syntheticWorkspaceNotes = `${SYNTHETIC_WORKSPACE_NOTICE} Active focus on Rupa Naik and associated Hawala money trail. Regional intelligence team investigating Koramangala cyber incidents.`;
+const workspaceFallbackState = {
+  success: true,
+  notes: syntheticWorkspaceNotes,
+  pinned: syntheticPinnedAssets,
+  pinnedAssets: syntheticPinnedAssets,
+};
 
 export interface ChatResponse {
   success: boolean;
   originalQuery: string;
   queryParsed: string;
   language: 'en' | 'kn';
-  tool: 'map' | 'chart' | 'network' | 'risk' | 'text' | 'finance' | 'socio' | 'similar' | 'forecast';
+  tool: 'map' | 'chart' | 'network' | 'text' | 'finance' | 'socio' | 'similar' | 'forecast' |
+    'ocr' | 'cdr' | 'biometrics' | 'dispatch' | 'timeline' | 'early_warning' | 'case_summary' | 'general';
   data: any;
   narrative: string;
   evidenceSources?: EvidenceSource;
@@ -62,7 +70,6 @@ export interface AnomalyAlert {
 export interface AnomalyResponse {
   success: boolean;
   anomalies: {
-    offenders: any[];
     moPatterns: any[];
     districtVolume: any[];
     generatedAlerts: AnomalyAlert[];
@@ -297,6 +304,19 @@ export const api = {
     } catch (err) {
       console.warn('Chat API fallback triggered:', err);
     }
+
+    if (/\b(?:recidiv\w*|(?:risk|threat) (?:score|rating|assessment|profile|classification)|profile (?:of )?(?:a )?(?:suspect|accused|offender)|high[- ]risk (?:suspect|accused|offender)|(?:risk|threat) (?:of|for) (?:[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*)*|him|her|them|this person|that person)|(?:suspect|accused|offender|person)\b.{0,40}\b(?:risk|threat)\b)/i.test(query)) {
+      return {
+        success: true,
+        originalQuery: query,
+        queryParsed: 'Individual scoring request blocked by policy.',
+        language: 'en',
+        tool: 'text',
+        data: null,
+        narrative: 'Individual risk scoring and threat classification are disabled. Review verified case records and evidence without an automated person-level score.',
+        llmMode: 'fallback'
+      };
+    }
     
     // Resilient QuickML RAG fallback response with smart query intent routing
     const q = query.toLowerCase();
@@ -308,12 +328,12 @@ export const api = {
       detectedTool = 'network';
       data = {
         nodes: [
-          { id: 'acc_Sharief', label: 'Mohammad Sharief', type: 'person', group: 'accused', score: 0.88, details: 'Role: Syndicate Kingpin. Convictions: 3' },
-          { id: 'acc_Jacky', label: 'Jagadish @ Jacky', type: 'person', group: 'accused', score: 0.82, details: 'Role: Co-Accused Operator. Convictions: 2' },
-          { id: 'acc_Ramesh', label: 'Ramesh Gowda', type: 'person', group: 'accused', score: 0.75, details: 'Role: Hawala Money Mule. Convictions: 1' },
-          { id: 'acc_Rupa', label: 'Rupa Naik', type: 'person', group: 'accused', score: 0.85, details: 'Role: Organized Crime Cell Leader. Convictions: 2' },
-          { id: 'acc_Karthik', label: 'Karthik V', type: 'person', group: 'accused', score: 0.68, details: 'Role: Phishing Lead Operator. Convictions: 1' },
-          { id: 'acc_Pradeep', label: 'Pradeep Kumar', type: 'person', group: 'accused', score: 0.79, details: 'Role: SIM Swap Syndicate Operator. Convictions: 2' },
+          { id: 'acc_Sharief', label: 'Mohammad Sharief', type: 'person', group: 'accused', details: 'Role: Syndicate Kingpin. Convictions: 3' },
+          { id: 'acc_Jacky', label: 'Jagadish @ Jacky', type: 'person', group: 'accused', details: 'Role: Co-Accused Operator. Convictions: 2' },
+          { id: 'acc_Ramesh', label: 'Ramesh Gowda', type: 'person', group: 'accused', details: 'Role: Hawala Money Mule. Convictions: 1' },
+          { id: 'acc_Rupa', label: 'Rupa Naik', type: 'person', group: 'accused', details: 'Role: Organized Crime Cell Leader. Convictions: 2' },
+          { id: 'acc_Karthik', label: 'Karthik V', type: 'person', group: 'accused', details: 'Role: Phishing Lead Operator. Convictions: 1' },
+          { id: 'acc_Pradeep', label: 'Pradeep Kumar', type: 'person', group: 'accused', details: 'Role: SIM Swap Syndicate Operator. Convictions: 2' },
           { id: 'entity_Vertex', label: 'Vertex Holdings Ltd', type: 'entity', group: 'entity', details: 'Shell Entity • INR 45L Layering Node' },
           { id: 'case_FIR-2026-001', label: 'FIR-2026-001', type: 'case', group: 'case', details: 'Type: Cyber Fraud (INR 12L)' },
           { id: 'case_FIR-2026-004', label: 'FIR-2026-004', type: 'case', group: 'case', details: 'Type: Financial Fraud (INR 45L)' },
@@ -444,7 +464,6 @@ export const api = {
             age: 38,
             gender: "Male",
             gang: "Organized Hawala Syndicate",
-            risk_score: 84.5,
             fir_number: "FIR-2026-004",
             crime_type: "Financial Fraud",
             address: "Flat 402, Royal Palms, Koramangala 5th Block, Bengaluru",
@@ -462,7 +481,6 @@ export const api = {
             age: 40,
             gender: "Male",
             gang: "Sharief Cyber Syndicate",
-            risk_score: 88.0,
             fir_number: "FIR-2026-012",
             crime_type: "Cyber Crime",
             address: "Koramangala 4th Block, Bengaluru",
@@ -479,46 +497,9 @@ export const api = {
       narrative = `### 🧬 Zia Facial Biometric Registry Search for "${query}"\n\n- **Top Facial Similarity**: 98.2% Match\n- **Target Accused**: **Ramesh Gowda** (FIR-2026-004)\n- **Secondary Match**: **Mohammad Sharief** (91.5% Match, FIR-2026-012)\n- **Biometric Features**: Forehead node cluster #18, Iris Hash 94.8%.`;
     }
     else {
-      // Default: Risk Profile for queried target suspect
-      detectedTool = 'risk';
-      const isJacky = q.includes("jacky") || q.includes("jagadish");
-      const isSharief = q.includes("sharief") || q.includes("mohammad");
-      const isRupa = q.includes("rupa") || q.includes("naik");
-      const isRamesh = q.includes("ramesh") || q.includes("gowda");
-
-      let suspectName = "Ramesh Gowda";
-      if (isSharief) suspectName = "Mohammad Sharief";
-      else if (isJacky) suspectName = "Jagadish @ Jacky";
-      else if (isRupa) suspectName = "Rupa Naik";
-      else if (isRamesh) suspectName = "Ramesh Gowda";
-      else {
-        const match = query.match(/(?:suspect|accused|offender|person|about|for)\s+([a-z]+(?:\s+[a-z]+)?)/i);
-        if (match) {
-          suspectName = match[1].replace(/\b\w/g, l => l.toUpperCase());
-        }
-      }
-
-      data = {
-        name: suspectName,
-        age: isJacky ? 42 : isRupa ? 31 : 38,
-        gender: isRupa ? "Female" : "Male",
-        occupation: isJacky ? "Absconding Suspect" : "Real Estate Agent / Syndicate Member",
-        address: isJacky ? "Kodagu Forest Hideout / Koramangala, Bengaluru" : "Flat 402, Royal Palms, Koramangala 5th Block, Bengaluru",
-        gang_affiliation: isJacky ? "Sharief Cyber Syndicate" : "Organized Hawala Syndicate",
-        prior_convictions: isJacky ? 4 : 3,
-        overall_score: isJacky ? 0.89 : 0.845,
-        threat_level: "Critical",
-        factors: [
-          { factor: "Active Non-Bailable Warrant", impact: "Critical", detail: "2 active warrants under IPC 420 & IT Act 66D." },
-          { factor: "Hawala Transactions", impact: "High", detail: "INR 45,00,000 transferred across 6 linked UPI nodes within 45 mins." },
-          { factor: "Habitual Offender", impact: "High", detail: `${isJacky ? 4 : 3} prior convictions across Bengaluru City Central PS jurisdiction.` }
-        ],
-        recommendation: "High-priority apprehension: Execute active non-bailable warrant under Section 154 Cr.P.C. and seize financial devices.",
-        incidents: [
-          { fir_id: 101, fir_number: "FIR-2026-004", crime_type: "Financial Fraud", district: "Bengaluru City", date: "2026-07-24" }
-        ]
-      };
-      narrative = `### 🛡️ KSP Crime Intelligence Briefing for "${query}"\n\n- **CCTNS Record Status**: Active Under Investigation\n- **Jurisdiction**: Bengaluru City Central PS\n- **Risk Assessment**: **HIGH RISK (Score: ${(data.overall_score * 100).toFixed(1)}/100)**\n- **Target Accused**: **${data.name}**\n- **Legal Action**: Non-Bailable Warrant Active. Immediate apprehension recommended under Section 154 Cr.P.C.`;
+      detectedTool = 'text';
+      data = null;
+      narrative = 'No verified offline case response is available for this query.';
     }
 
     return {
@@ -549,11 +530,9 @@ export const api = {
     return {
       success: true,
       anomalies: {
-        offenders: [{ id: 'ACC-8801', name: 'Mohammad Sharief', risk: 'High' }],
         moPatterns: [{ pattern: 'Cyber Phishing + UPI Relay', count: 18 }],
         districtVolume: [{ district: 'Bengaluru City', spike: '+34%' }],
         generatedAlerts: [
-          { type: 'Recidivism Spike', severity: 'Critical', title: 'High-Risk Offender Movement', description: 'Mohammad Sharief pinged near Koramangala 5th Block tower CELL-4102.', timestamp: new Date().toLocaleTimeString() },
           { type: 'Financial Anomaly', severity: 'High', title: 'Hawala Velocity Alert', description: 'INR 45,00,000 transferred across 6 linked UPI nodes within 45 mins.', timestamp: new Date().toLocaleTimeString() }
         ]
       }
@@ -719,12 +698,10 @@ export const api = {
       activeIncidents: 142,
       underInvestigation: 89,
       identifiedSyndicates: 12,
-      highThreatRecidivists: 24,
       stats: {
         total: 142,
         open: 89,
-        syndicates: 12,
-        highRisk: 24
+        syndicates: 12
       },
       hotspots: [
         { id: 1, lat: 12.9716, lng: 77.5946, title: 'Bengaluru Central PS', count: 42, risk: 'High', type: 'Cyber Crime' },
@@ -1017,12 +994,7 @@ export const api = {
         };
       }
     } catch (e) {}
-    return {
-      success: true,
-      notes: _mockWorkspaceNotes,
-      pinned: _mockPinnedAssets,
-      pinnedAssets: _mockPinnedAssets
-    };
+    return workspaceFallbackState;
   },
 
   /**
@@ -1036,14 +1008,13 @@ export const api = {
       });
       if (response.ok) return await response.json();
     } catch (e) {}
-    
-    // Local mock toggle fallback
-    const idx = _mockPinnedAssets.findIndex(a => a.asset_type === assetType && a.asset_id === assetId);
+
+    const idx = syntheticPinnedAssets.findIndex(a => a.asset_type === assetType && a.asset_id === assetId);
     let isPinned = false;
     if (idx >= 0) {
-      _mockPinnedAssets.splice(idx, 1);
+      syntheticPinnedAssets.splice(idx, 1);
     } else {
-      _mockPinnedAssets.unshift({
+      syntheticPinnedAssets.unshift({
         id: Date.now(),
         asset_type: assetType,
         asset_id: assetId,
@@ -1052,7 +1023,7 @@ export const api = {
       });
       isPinned = true;
     }
-    return { success: true, pinned: isPinned, message: 'Asset updated in collaborative workspace.' };
+    return { success: true, pinned: isPinned, message: 'Synthetic workspace asset updated for prototype review.' };
   },
 
   /**

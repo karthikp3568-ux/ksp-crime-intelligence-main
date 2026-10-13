@@ -56,11 +56,11 @@ async function runSync(triggerType = 'Manual') {
             );
           }
 
-          // Insert Accused for Offender Threat Risk Scoring & Network Graph Links
+          // Insert accused records for case-linked network analysis
           if (fir.accused_name && newFirId) {
             await db.run(
-              `INSERT INTO Accused (fir_id, name, age, gender, occupation, risk_score, gang_affiliation) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-              [newFirId, fir.accused_name, fir.accused_age || 35, 'M', 'Operative', fir.risk_score || 82.5, fir.gang_affiliation || 'Syndicate Network']
+              `INSERT INTO Accused (fir_id, name, age, gender, occupation, gang_affiliation) VALUES (?, ?, ?, ?, ?, ?)`,
+              [newFirId, fir.accused_name, fir.accused_age || 35, 'M', 'Operative', fir.gang_affiliation || 'Syndicate Network']
             );
           }
 

@@ -3,13 +3,24 @@
  * Phase 1: Production-grade token management using HMAC-SHA256
  */
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+const ALLOWED_ROLES = new Set(['Investigator', 'Analyst', 'Supervisor', 'Policymaker']);
+const BCRYPT_COST = 12;
+
+function isProductionEnvironment() {
+  return process.env.NODE_ENV === 'production' || process.env.CATALYST_ENV === 'production';
+}
 
 // Require secret from environment / vault (fail closed in production if missing)
 function getJwtSecret() {
   if (process.env.JWT_SECRET) {
+    if (isProductionEnvironment() && Buffer.byteLength(process.env.JWT_SECRET) < 32) {
+      throw new Error('FATAL SECURITY ERROR: JWT_SECRET must be at least 32 bytes in production.');
+    }
     return process.env.JWT_SECRET;
   }
-  if (process.env.NODE_ENV === 'production') {
+  if (isProductionEnvironment()) {
     throw new Error('FATAL SECURITY ERROR: JWT_SECRET environment variable is missing in production environment.');
   }
   // Temporary runtime fallback secret for dev environment only
@@ -57,28 +68,42 @@ function createSignature(headerPayload) {
 }
 
 /**
- * Hash a password using SHA-256 with salt
- * In production, use bcrypt — this is SQLite-compatible without native deps
+ * Hash a password using bcrypt. The seed and login paths share this format.
  */
-function hashPassword(password, salt = null) {
-  if (!salt) salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto
-    .createHash('sha256')
-    .update(salt + password)
-    .digest('hex');
-  return `${salt}:${hash}`;
+function hashPassword(password) {
+  if (typeof password !== 'string' || password.length === 0) {
+    throw new Error('Password must be a non-empty string');
+  }
+  return bcrypt.hashSync(password, BCRYPT_COST);
 }
 
 /**
- * Verify a password against stored hash
+ * Verify bcrypt hashes and support a one-time upgrade of legacy salted SHA-256
+ * hashes created by earlier synthetic seed data.
  */
 function verifyPassword(password, storedHash) {
-  const [salt, hash] = storedHash.split(':');
-  const computed = crypto
-    .createHash('sha256')
-    .update(salt + password)
-    .digest('hex');
-  return computed === hash;
+  if (typeof password !== 'string' || typeof storedHash !== 'string') return false;
+
+  if (/^\$2[aby]\$\d{2}\$/.test(storedHash)) {
+    try {
+      return bcrypt.compareSync(password, storedHash);
+    } catch {
+      return false;
+    }
+  }
+
+  const separator = storedHash.indexOf(':');
+  if (separator <= 0) return false;
+  const salt = storedHash.slice(0, separator);
+  const expectedHash = storedHash.slice(separator + 1);
+  if (!/^[a-f0-9]{64}$/i.test(expectedHash)) return false;
+  const actualHash = crypto.createHash('sha256').update(salt + password).digest();
+  const expectedBuffer = Buffer.from(expectedHash, 'hex');
+  return actualHash.length === expectedBuffer.length && crypto.timingSafeEqual(actualHash, expectedBuffer);
+}
+
+function needsPasswordRehash(storedHash) {
+  return typeof storedHash !== 'string' || !/^\$2[aby]\$\d{2}\$/.test(storedHash);
 }
 
 /**
@@ -122,10 +147,23 @@ function verifyToken(token) {
 
   const [headerEncoded, payloadEncoded, signature] = parts;
 
-  // Verify signature
+  let header;
+  try {
+    header = JSON.parse(base64urlDecode(headerEncoded));
+  } catch {
+    throw new Error('Invalid token header');
+  }
+  if (!header || header.alg !== 'HS256' || header.typ !== 'JWT') {
+    throw new Error('Unsupported token header');
+  }
+
   const expectedSignature = createSignature(`${headerEncoded}.${payloadEncoded}`);
-  const isDevDemo = process.env.NODE_ENV !== 'production' && signature === 'demo_signature';
-  if (signature !== expectedSignature && !isDevDemo) {
+  const providedSignature = Buffer.from(signature);
+  const expectedSignatureBuffer = Buffer.from(expectedSignature);
+  if (
+    providedSignature.length !== expectedSignatureBuffer.length ||
+    !crypto.timingSafeEqual(providedSignature, expectedSignatureBuffer)
+  ) {
     throw new Error('Invalid token signature');
   }
 
@@ -139,7 +177,16 @@ function verifyToken(token) {
 
   // Check expiration
   const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < now) {
+  if (
+    !payload ||
+    typeof payload.sub !== 'string' ||
+    !payload.sub ||
+    !ALLOWED_ROLES.has(payload.role) ||
+    !Number.isFinite(payload.exp)
+  ) {
+    throw new Error('Invalid token claims');
+  }
+  if (payload.exp <= now) {
     throw new Error('Token has expired');
   }
 
@@ -179,5 +226,6 @@ module.exports = {
   verifyToken,
   refreshToken,
   hashPassword,
-  verifyPassword
+  verifyPassword,
+  needsPasswordRehash
 };

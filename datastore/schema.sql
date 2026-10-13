@@ -27,10 +27,6 @@ CREATE TABLE IF NOT EXISTS Accused (
     occupation TEXT,
     address TEXT,
     prior_convictions INTEGER DEFAULT 0,
-    risk_score REAL DEFAULT 0.0,
-    risk_model_version TEXT DEFAULT 'v1.0-formula',
-    risk_confidence_low REAL,
-    risk_confidence_high REAL,
     gang_affiliation TEXT,
     education_level TEXT DEFAULT 'Unknown',
     marital_status TEXT DEFAULT 'Unknown',
@@ -259,7 +255,6 @@ CREATE INDEX IF NOT EXISTS idx_fir_station ON FIR(police_station);
 CREATE INDEX IF NOT EXISTS idx_fir_bns ON FIR(bns_section);
 CREATE INDEX IF NOT EXISTS idx_accused_name ON Accused(name);
 CREATE INDEX IF NOT EXISTS idx_accused_gang ON Accused(gang_affiliation);
-CREATE INDEX IF NOT EXISTS idx_accused_risk ON Accused(risk_score);
 CREATE INDEX IF NOT EXISTS idx_location_coords ON Location(latitude, longitude);
 CREATE INDEX IF NOT EXISTS idx_location_district ON Location(district);
 CREATE INDEX IF NOT EXISTS idx_financial_fir ON FinancialTransaction(fir_id);
