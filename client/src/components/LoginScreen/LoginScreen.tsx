@@ -1,15 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Lock, UserCheck, KeyRound, AlertTriangle, Phone, Globe } from 'lucide-react';
+import {
+  Activity,
+  ArrowDownRight,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Fingerprint,
+  Globe,
+  KeyRound,
+  Lock,
+  MapPin,
+  Network,
+  Phone,
+  ShieldAlert,
+  UserCheck,
+  AlertTriangle,
+} from 'lucide-react';
 import { api } from '../../services/api';
-
-interface LoginUser {
-  userId: string;
-  role: 'Investigator' | 'Analyst' | 'Supervisor' | 'Policymaker';
-  rank: string;
-  name: string;
-}
+import './LoginScreen.css';
 
 const DEMO_ONLY_NOTE = 'Synthetic data only. This system is a decision-support prototype and does not trigger real enforcement actions.';
+
+const showcaseSlides = [
+  {
+    eyebrow: '01 / FIELD INTELLIGENCE',
+    title: 'See the bigger picture.',
+    description: 'Bring related incident patterns and location context into one focused view for human review.',
+    detail: 'Connected case context',
+    icon: MapPin,
+    color: 'coral',
+  },
+  {
+    eyebrow: '02 / ANALYTICS',
+    title: 'Turn signals into insight.',
+    description: 'Explore trends and analytical summaries designed to support careful, evidence-led decisions.',
+    detail: 'Explainable data views',
+    icon: BarChart3,
+    color: 'violet',
+  },
+  {
+    eyebrow: '03 / EVIDENCE REVIEW',
+    title: 'Follow every connection.',
+    description: 'Review timelines and relationship maps while keeping the source trail close at hand.',
+    detail: 'Traceable review tools',
+    icon: Network,
+    color: 'teal',
+  },
+  {
+    eyebrow: '04 / RESPONSIBLE ACCESS',
+    title: 'Built around accountability.',
+    description: 'Role-based workspaces keep teams focused, with security and human oversight at every step.',
+    detail: 'People remain in control',
+    icon: Fingerprint,
+    color: 'gold',
+  },
+];
 
 interface LoginScreenProps {
   onLoginSuccess: (userId: string, role: string) => void;
@@ -26,20 +71,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   
   // MFA OTP timer state
   const [countdown, setCountdown] = useState(30);
-  const [canResend, setCanResend] = useState(false);
-
-  const upperBadge = badgeId.toUpperCase().trim();
+  const [activeSlide, setActiveSlide] = useState(0);
+  const canResend = countdown === 0;
 
   useEffect(() => {
-    let timer: any;
-    if (step === 'otp' && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-    } else if (countdown === 0) {
-      setCanResend(true);
+    if (step !== 'otp' || countdown === 0) {
+      return;
     }
-    return () => clearInterval(timer);
+
+    const timer = window.setInterval(() => {
+      setCountdown((previous) => Math.max(0, previous - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
   }, [step, countdown]);
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
@@ -73,12 +116,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         localStorage.setItem('ksp_temp_user_role', res.user.role);
         setStep('otp');
         setCountdown(30);
-        setCanResend(false);
       } else {
         setError(res.error || 'Authentication failed. Please verify credentials.');
       }
-    } catch (err: any) {
-      setError(err?.message || 'Authentication failed. Please verify credentials.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Authentication failed. Please verify credentials.');
     } finally {
       setIsSubmitting(false);
     }
@@ -123,17 +165,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 
   const handleResendOtp = () => {
     setCountdown(30);
-    setCanResend(false);
     setOtp('');
     setError(null);
     alert('A new secure 2FA verification token has been dispatched to your official communication terminal.');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f0f4f8] to-[#dce4ed] flex flex-col select-none font-sans">
+    <div className="login-page min-h-screen flex flex-col font-sans">
       
       {/* Government Utility Bar */}
-      <div className="bg-[#0d2137] text-slate-400 text-[10px] py-1 px-4">
+      <div className="login-utility-bar text-[10px] py-1 px-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
             <span>Official Website of Government of Karnataka</span>
@@ -161,7 +202,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       </div>
 
       {/* Login Header Bar */}
-      <div className="bg-white border-b-[3px] border-[#1e3a5f] shadow-sm px-4 py-3">
+      <header className="login-header px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <img src="/emblem.png" alt="KSP Emblem" className="h-12 w-auto object-contain" />
           <div>
@@ -173,21 +214,123 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             </h2>
             <span className="text-[10px] text-[#6c757d] font-semibold">Government of Karnataka</span>
           </div>
-        </div>
-      </div>
-
-      {/* Main Content — Centered Login */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-800">
-            {DEMO_ONLY_NOTE}
+          <div className="login-header-mark">
+            <span className="login-header-mark-dot" />
+            <span>INTELLIGENCE • ANALYTICS • ACCOUNTABILITY</span>
           </div>
+        </div>
+      </header>
+
+      <main className="login-main">
+        <div className="login-layout">
+          <section className="showcase-panel" aria-label="Portal capabilities">
+            <div className="showcase-topline">
+              <span className="showcase-live-dot" />
+              <span>CRIME INTELLIGENCE &amp; ANALYTICS</span>
+              <span className="showcase-topline-rule" />
+              <span className="showcase-topline-state">DEMO ENVIRONMENT</span>
+            </div>
+
+            <div className="showcase-intro">
+              <p className="showcase-kicker">A clearer view. A more considered response.</p>
+              <h2>Intelligence that<br /><span>moves with purpose.</span></h2>
+              <p className="showcase-summary">
+                A unified workspace for Karnataka State Police teams to explore synthetic case context,
+                review patterns and collaborate with care.
+              </p>
+            </div>
+
+            <div className="showcase-stage" aria-live="polite">
+              <div className="showcase-stage-glow" />
+              <div className={`showcase-slide showcase-slide-${showcaseSlides[activeSlide].color}`} key={activeSlide}>
+                <div className="showcase-slide-top">
+                  <span>{showcaseSlides[activeSlide].eyebrow}</span>
+                  <ArrowDownRight size={19} aria-hidden="true" />
+                </div>
+                <div className="showcase-visual" aria-hidden="true">
+                  <span className="showcase-visual-orbit orbit-a" />
+                  <span className="showcase-visual-orbit orbit-b" />
+                  <span className="showcase-visual-orbit orbit-c" />
+                  <span className="showcase-visual-icon">
+                    {React.createElement(showcaseSlides[activeSlide].icon, { size: 34, strokeWidth: 1.6 })}
+                  </span>
+                  <span className="showcase-visual-node node-a" />
+                  <span className="showcase-visual-node node-b" />
+                  <span className="showcase-visual-node node-c" />
+                </div>
+                <div className="showcase-slide-copy">
+                  <h3>{showcaseSlides[activeSlide].title}</h3>
+                  <p>{showcaseSlides[activeSlide].description}</p>
+                </div>
+                <div className="showcase-slide-detail">
+                  <Activity size={15} aria-hidden="true" />
+                  <span>{showcaseSlides[activeSlide].detail}</span>
+                  <span className="showcase-detail-label">ILLUSTRATIVE</span>
+                </div>
+              </div>
+              <div className="showcase-float-card float-card-top" aria-hidden="true">
+                <span className="float-card-icon"><ShieldAlert size={15} /></span>
+                <span><strong>Human review</strong><small>Always in the loop</small></span>
+              </div>
+              <div className="showcase-float-card float-card-bottom" aria-hidden="true">
+                <span className="float-card-icon"><MapPin size={15} /></span>
+                <span><strong>Context, connected</strong><small>Designed for clarity</small></span>
+              </div>
+            </div>
+
+            <div className="showcase-controls">
+              <span className="showcase-slide-count">
+                <strong>{String(activeSlide + 1).padStart(2, '0')}</strong>
+                <span> / {String(showcaseSlides.length).padStart(2, '0')}</span>
+              </span>
+              <div className="showcase-dots" aria-label="Choose a feature slide">
+                {showcaseSlides.map((slide, index) => (
+                  <button
+                    key={slide.eyebrow}
+                    type="button"
+                    className={`showcase-dot ${activeSlide === index ? 'is-active' : ''}`}
+                    onClick={() => setActiveSlide(index)}
+                    aria-label={`Show slide ${index + 1}: ${slide.title}`}
+                    aria-current={activeSlide === index ? 'true' : undefined}
+                  />
+                ))}
+              </div>
+              <div className="showcase-arrows">
+                <button
+                  type="button"
+                  onClick={() => setActiveSlide((activeSlide - 1 + showcaseSlides.length) % showcaseSlides.length)}
+                  aria-label="Previous feature"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSlide((activeSlide + 1) % showcaseSlides.length)}
+                  aria-label="Next feature"
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="showcase-trust-row">
+              <span><Fingerprint size={15} /> Role-aware access</span>
+              <span><ShieldAlert size={15} /> Synthetic data only</span>
+              <span><Network size={15} /> Human-led decisions</span>
+            </div>
+          </section>
+
+          <div className="w-full max-w-md login-column">
+            <div className="login-demo-note">
+              <span className="login-demo-note-icon"><AlertTriangle size={15} /></span>
+              <span>{DEMO_ONLY_NOTE}</span>
+            </div>
 
           {/* Login Card */}
-          <div className="bg-white border border-[#d1d9e6] rounded-lg shadow-xl overflow-hidden">
+          <div className="login-card bg-white border border-[#d1d9e6] rounded-lg shadow-xl overflow-hidden">
             
             {/* Card Navy Header */}
-            <div className="bg-[#1e3a5f] px-6 py-4 text-center">
+            <div className="login-card-header bg-[#1e3a5f] px-6 py-4 text-center">
               <img src="/emblem.png" alt="Karnataka State Police Emblem" className="h-16 w-auto mx-auto object-contain mb-2 drop-shadow-lg" />
               <h2 className="text-[14px] font-bold tracking-widest text-white uppercase" style={{ fontFamily: "'Noto Sans Kannada', sans-serif" }}>
                 ಕರ್ನಾಟಕ ರಾಜ್ಯ ಪೊಲೀಸ್
@@ -201,16 +344,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             </div>
 
             {/* Card Body */}
-            <div className="p-6">
+            <div className="login-card-body p-6">
               
-              {/* Prototype Disclaimer Banner */}
-              <div className="mb-4 bg-amber-50 border border-amber-300 text-amber-900 p-2.5 rounded-lg flex items-center gap-2 text-[11px] font-medium">
-                <AlertTriangle size={14} className="shrink-0 text-amber-600" />
-                <span><strong>Demonstration Prototype</strong> — Operates on synthetic data and local emulated services.</span>
-              </div>
               {/* Error Alert Box */}
               {error && (
-                <div className="mb-5 bg-red-50 border border-red-200 text-[#d9251c] p-3 rounded-lg flex items-start gap-2.5 text-xs">
+                <div className="login-error mb-5 bg-red-50 border border-red-200 text-[#d9251c] p-3 rounded-lg flex items-start gap-2.5 text-xs" role="alert">
                   <ShieldAlert size={16} className="shrink-0 mt-0.5" />
                   <span className="leading-relaxed font-medium">{error}</span>
                 </div>
@@ -235,18 +373,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         disabled={isSubmitting}
                         onChange={(e) => setBadgeId(e.target.value)}
                         placeholder="e.g. INV-1001"
-                        className="bg-[#f8f9fa] border border-[#d1d9e6] focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f]/20 focus:outline-none rounded-lg pl-10 pr-3 py-2.5 text-xs text-[#1e3a5f] placeholder-[#9ca3af] w-full tracking-wide transition font-mono uppercase"
+                        className="login-input bg-[#f8f9fa] border border-[#d1d9e6] focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f]/20 focus:outline-none rounded-lg pl-10 pr-3 py-2.5 text-xs text-[#1e3a5f] placeholder-[#9ca3af] w-full tracking-wide transition font-mono uppercase"
                         autoComplete="off"
+                        aria-label="Official Badge ID or Service ID"
                       />
                     </div>
                     
-                    {/* Dynamic Credential Preview Helper */}
-                    {matchedOfficer && (
-                      <div className="bg-blue-50 border border-blue-200 rounded p-2 flex items-center gap-2 text-[10px] text-[#1e3a5f] font-medium transition">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Authorized Officer Found: <strong>{matchedOfficer.rank} {matchedOfficer.name}</strong> ({matchedOfficer.role})</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Password Input */}
@@ -264,7 +396,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                         disabled={isSubmitting}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="bg-[#f8f9fa] border border-[#d1d9e6] focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f]/20 focus:outline-none rounded-lg pl-10 pr-3 py-2.5 text-xs text-[#1e3a5f] placeholder-[#9ca3af] w-full transition"
+                        className="login-input bg-[#f8f9fa] border border-[#d1d9e6] focus:border-[#1e3a5f] focus:ring-1 focus:ring-[#1e3a5f]/20 focus:outline-none rounded-lg pl-10 pr-3 py-2.5 text-xs text-[#1e3a5f] placeholder-[#9ca3af] w-full transition"
+                        autoComplete="current-password"
+                        aria-label="Access password"
                       />
                     </div>
                   </div>
@@ -273,48 +407,51 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-[#1e3a5f] hover:bg-[#2a4a73] text-white font-bold text-xs uppercase tracking-wider py-3 rounded-lg shadow-lg cursor-pointer transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="login-submit w-full bg-[#1e3a5f] hover:bg-[#2a4a73] text-white font-bold text-xs uppercase tracking-wider py-3 rounded-lg shadow-lg cursor-pointer transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <KeyRound size={14} /> {isSubmitting ? 'Authenticating...' : 'Verify Credentials'}
                   </button>
                   
-                  {/* Quick credentials references — click to log in directly */}
-                  <div className="border-t border-[#e8ecf1] pt-4 mt-2">
+                  <div className="login-badge-examples border-t border-[#e8ecf1] pt-4 mt-2">
                     <span className="block text-[9px] text-[#6c757d] font-bold uppercase tracking-wider mb-2">
-                      Click a Badge to Enter as That Role
+                      Badge ID examples <span className="login-badge-hint">Select to fill the field</span>
                     </span>
                     <div className="grid grid-cols-2 gap-2 text-[9px]">
                       <button
                         type="button"
-                        onClick={() => directLogin('INV-1001')}
+                        onClick={() => setBadgeId('INV-1001')}
                         className="text-left bg-[#f8f9fa] hover:bg-[#eef2f7] border border-[#d1d9e6] text-[#4a5568] p-1.5 rounded cursor-pointer transition text-xs"
+                        aria-label="Fill Investigator badge ID example"
                       >
                         <span className="font-mono text-[#1e3a5f] block">INV-1001</span>
-                        Investigator (Meera Nair)
+                        Investigator
                       </button>
                       <button
                         type="button"
-                        onClick={() => directLogin('ANA-2001')}
+                        onClick={() => setBadgeId('ANA-2001')}
                         className="text-left bg-[#f8f9fa] hover:bg-[#eef2f7] border border-[#d1d9e6] text-[#4a5568] p-1.5 rounded cursor-pointer transition text-xs"
+                        aria-label="Fill Analyst badge ID example"
                       >
                         <span className="font-mono text-[#1e3a5f] block">ANA-2001</span>
-                        Analyst (Priya Sharma)
+                        Analyst
                       </button>
                       <button
                         type="button"
-                        onClick={() => directLogin('SUP-3001')}
+                        onClick={() => setBadgeId('SUP-3001')}
                         className="text-left bg-[#f8f9fa] hover:bg-[#eef2f7] border border-[#d1d9e6] text-[#4a5568] p-1.5 rounded cursor-pointer transition text-xs"
+                        aria-label="Fill Supervisor badge ID example"
                       >
                         <span className="font-mono text-[#1e3a5f] block">SUP-3001</span>
-                        Supervisor (ACP Raghavendra)
+                        Supervisor
                       </button>
                       <button
                         type="button"
-                        onClick={() => directLogin('POL-4001')}
+                        onClick={() => setBadgeId('POL-4001')}
                         className="text-left bg-[#f8f9fa] hover:bg-[#eef2f7] border border-[#d1d9e6] text-[#4a5568] p-1.5 rounded cursor-pointer transition text-xs"
+                        aria-label="Fill Policymaker badge ID example"
                       >
                         <span className="font-mono text-[#1e3a5f] block">POL-4001</span>
-                        Policymaker (DGP Srinivas)
+                        Policymaker
                       </button>
                     </div>
                   </div>
@@ -398,15 +535,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
 
           {/* Security Warning Footer */}
-          <div className="mt-4 bg-white border border-[#d1d9e6] rounded-lg p-4 flex items-start gap-2.5 text-[9px] text-[#6c757d] leading-normal font-medium shadow-sm">
+          <div className="login-security-note mt-4 bg-white border border-[#d1d9e6] rounded-lg p-4 flex items-start gap-2.5 text-[9px] text-[#6c757d] leading-normal font-medium shadow-sm">
             <AlertTriangle size={14} className="shrink-0 text-amber-500" />
             <span>
               <strong className="text-[#1e3a5f]">WARNING:</strong> This is a secure system of the Karnataka State Police. Unauthorized access, tampering, or intrusion attempts will be recorded and prosecuted under Sections 43, 65, and 66 of the IT Act, 2000.
             </span>
           </div>
 
+          </div>
         </div>
-      </div>
+      </main>
 
       {/* Footer */}
       <div className="bg-[#0d2137] border-t-[3px] border-[#d4a843] py-4 text-center">
